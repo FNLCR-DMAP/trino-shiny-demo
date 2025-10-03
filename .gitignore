@@ -1,0 +1,23 @@
+# Archive folder - contains non-essential files
+archive/
+
+# Docker volumes and generated data
+warehouse/*
+!warehouse/.gitkeep
+
+# Docker Compose logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*~

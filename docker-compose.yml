@@ -1,0 +1,73 @@
+services:
+
+  # PostgreSQL database for Hive Metastore
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hive123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - iceberg-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hive -d metastore"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Hive Metastore (using PostgreSQL database)
+  hive-metastore:
+    image: apache/hive:4.0.0
+    container_name: hive-metastore
+    environment:
+      - SERVICE_NAME=metastore
+      - IS_RESUME=false
+      - DB_DRIVER=postgres
+    ports:
+      - "9083:9083"
+    volumes:
+      - ./hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ./warehouse:/opt/hive/data/warehouse
+      - ./hive/lib/postgresql-42.6.0.jar:/opt/hive/lib/postgresql-42.6.0.jar
+    networks:
+      - iceberg-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Trino Coordinator
+  trino:
+    image: trinodb/trino:435
+    container_name: trino
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./trino/etc:/etc/trino
+      - ./trino/catalog:/etc/trino/catalog
+      - ./warehouse:/data/warehouse
+    depends_on:
+      - hive-metastore
+    networks:
+      - iceberg-net
+
+  # Trino CLI (for easy access)
+  trino-cli:
+    image: trinodb/trino:435
+    container_name: trino-cli
+    entrypoint: ["/bin/bash", "-c", "sleep infinity"]
+    depends_on:
+      - trino
+    networks:
+      - iceberg-net
+
+volumes:
+  postgres-data:
+
+networks:
+  iceberg-net:
+    driver: bridge
