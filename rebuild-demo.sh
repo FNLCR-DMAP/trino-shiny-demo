@@ -86,6 +86,88 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         echo "   → Querying data from Iceberg table..."
         docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT * FROM iceberg.demo.sample_data ORDER BY id" 2>/dev/null
         echo "   ✓ Query executed successfully"
+        
+        # Step 8a: Demonstrate Time Travel
+        echo "   → Testing Iceberg Time Travel..."
+        echo "     • Getting current snapshot info..."
+        SNAPSHOT_DATA=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT snapshot_id, committed_at, operation FROM iceberg.demo.\"sample_data\$snapshots\" ORDER BY committed_at DESC LIMIT 1" 2>/dev/null)
+        echo "     • Latest snapshot: $SNAPSHOT_DATA"
+        
+        # Add more data for time travel demonstration
+        echo "   → Adding more data for time travel demo..."
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "
+        INSERT INTO iceberg.demo.sample_data VALUES 
+        (4, 'Diana', 325.00, DATE '2024-01-04'),
+        (5, 'Eve', 199.99, DATE '2024-01-05')" 2>/dev/null
+        echo "   ✓ Additional data inserted"
+        
+        # Show current data
+        echo "   → Current data (5 rows):"
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as row_count, SUM(amount) as total_amount FROM iceberg.demo.sample_data" 2>/dev/null
+        
+        # Demonstrate time travel query
+        echo "   → Time travel query (showing data as of first snapshot)..."
+        FIRST_SNAPSHOT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT snapshot_id FROM iceberg.demo.\"sample_data\$snapshots\" ORDER BY committed_at LIMIT 1" 2>/dev/null | tail -n 1 | tr -d '"')
+        if [[ ! -z "$FIRST_SNAPSHOT" ]]; then
+            echo "     • Querying snapshot: $FIRST_SNAPSHOT"
+            docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as historical_count FROM iceberg.demo.sample_data FOR VERSION AS OF $FIRST_SNAPSHOT" 2>/dev/null
+        fi
+        
+        # Step 8b: Demonstrate Schema Evolution
+        echo "   → Testing Iceberg Schema Evolution..."
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "
+        ALTER TABLE iceberg.demo.sample_data 
+        ADD COLUMN customer_type VARCHAR DEFAULT 'standard'" 2>/dev/null
+        echo "   ✓ Schema evolved - added customer_type column"
+        
+        # Update some records with new column
+        echo "   → Updating records with new column..."
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "
+        UPDATE iceberg.demo.sample_data 
+        SET customer_type = 'premium' 
+        WHERE amount > 200" 2>/dev/null
+        echo "   ✓ Updated premium customers"
+        
+        # Show evolved schema
+        echo "   → Current schema with new column:"
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT name, amount, customer_type FROM iceberg.demo.sample_data WHERE customer_type = 'premium'" 2>/dev/null
+        
+        # Step 8c: Demonstrate Branching (if supported)
+        echo "   → Testing Iceberg Branching..."
+        # Create a branch for experimental changes
+        BRANCH_RESULT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "
+        ALTER TABLE iceberg.demo.sample_data 
+        CREATE BRANCH experimental" 2>&1)
+        
+        if [[ $BRANCH_RESULT != *"failed"* && $BRANCH_RESULT != *"error"* ]]; then
+            echo "   ✓ Created experimental branch"
+            
+            # Make changes on the branch
+            echo "   → Making experimental changes on branch..."
+            docker exec trino-cli trino --server trino:8080 --user admin --execute "
+            INSERT INTO iceberg.demo.sample_data FOR VERSION AS OF 'experimental'
+            VALUES (99, 'TestUser', 999.99, DATE '2024-12-31', 'experimental')" 2>/dev/null
+            
+            echo "   → Comparing main vs experimental branch:"
+            echo "     • Main branch count:"
+            docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.demo.sample_data" 2>/dev/null
+            echo "     • Experimental branch count:"
+            docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.demo.sample_data FOR VERSION AS OF 'experimental'" 2>/dev/null
+        else
+            echo "   ℹ Branching not supported in this Trino/Iceberg version"
+        fi
+        
+        # Step 8d: Show Iceberg Metadata Tables
+        echo "   → Exploring Iceberg Metadata Tables..."
+        echo "     • Table snapshots:"
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT committed_at, operation, summary FROM iceberg.demo.\"sample_data\$snapshots\" ORDER BY committed_at DESC LIMIT 3" 2>/dev/null
+        
+        echo "     • Data files:"
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT file_format, record_count, file_size_in_bytes FROM iceberg.demo.\"sample_data\$files\"" 2>/dev/null
+        
+        echo "     • Table history:"
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT made_current_at, snapshot_id FROM iceberg.demo.\"sample_data\$history\" ORDER BY made_current_at DESC LIMIT 3" 2>/dev/null
+        
     else
         echo "   ✗ Data insert failed"
     fi
@@ -105,7 +187,22 @@ echo "   • Web UI: http://localhost:8081"
 echo "   • Username: admin"
 echo "   • CLI: docker exec -it trino-cli trino --server trino:8080 --user admin"
 if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
-    echo "   • Sample queries:"
+    echo ""
+    echo "📊 Sample Iceberg Queries to Try:"
+    echo "   • Basic query:"
     echo "     SELECT * FROM iceberg.demo.sample_data;"
-    echo "     SELECT name, amount FROM iceberg.demo.sample_data WHERE amount > 150;"
+    echo ""
+    echo "   • Time Travel (replace SNAPSHOT_ID):"
+    echo "     SELECT * FROM iceberg.demo.sample_data FOR VERSION AS OF <snapshot_id>;"
+    echo ""
+    echo "   • Schema Evolution:"
+    echo "     SELECT name, amount, customer_type FROM iceberg.demo.sample_data;"
+    echo ""
+    echo "   • Metadata exploration:"
+    echo "     SELECT * FROM iceberg.demo.\"sample_data\$snapshots\";"
+    echo "     SELECT * FROM iceberg.demo.\"sample_data\$files\";"
+    echo "     SELECT * FROM iceberg.demo.\"sample_data\$history\";"
+    echo ""
+    echo "   • Advanced analytics:"
+    echo "     SELECT customer_type, COUNT(*), AVG(amount) FROM iceberg.demo.sample_data GROUP BY customer_type;"
 fi
