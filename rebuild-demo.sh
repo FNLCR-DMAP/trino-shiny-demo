@@ -105,12 +105,29 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         echo "   → Current data (5 rows):"
         docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as row_count, SUM(amount) as total_amount FROM iceberg.demo.sample_data" 2>/dev/null
         
-        # Demonstrate time travel query
+        # Demonstrate time travel query by snapshot ID
         echo "   → Time travel query (showing data as of first snapshot)..."
         FIRST_SNAPSHOT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT snapshot_id FROM iceberg.demo.\"sample_data\$snapshots\" ORDER BY committed_at LIMIT 1" 2>/dev/null | tail -n 1 | tr -d '"')
         if [[ ! -z "$FIRST_SNAPSHOT" ]]; then
-            echo "     • Querying snapshot: $FIRST_SNAPSHOT"
+            echo "     • Querying snapshot ID: $FIRST_SNAPSHOT"
             docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as historical_count FROM iceberg.demo.sample_data FOR VERSION AS OF $FIRST_SNAPSHOT" 2>/dev/null
+        fi
+        
+        # Demonstrate time travel query by timestamp
+        echo "   → Time travel query (showing data as of specific timestamp)..."
+        FIRST_TIMESTAMP=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT committed_at FROM iceberg.demo.\"sample_data\$snapshots\" ORDER BY committed_at LIMIT 1" 2>/dev/null | tail -n 1 | tr -d '"')
+        if [[ ! -z "$FIRST_TIMESTAMP" ]]; then
+            echo "     • Querying timestamp: $FIRST_TIMESTAMP"
+            docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as timestamp_count FROM iceberg.demo.sample_data FOR TIMESTAMP AS OF TIMESTAMP '$FIRST_TIMESTAMP'" 2>/dev/null
+        fi
+        
+        # Show comparison of current vs historical data
+        echo "   → Comparing current vs historical data:"
+        echo "     • Current total amount:"
+        docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT SUM(amount) as current_total FROM iceberg.demo.sample_data" 2>/dev/null
+        if [[ ! -z "$FIRST_SNAPSHOT" ]]; then
+            echo "     • Historical total amount (first snapshot):"
+            docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT SUM(amount) as historical_total FROM iceberg.demo.sample_data FOR VERSION AS OF $FIRST_SNAPSHOT" 2>/dev/null
         fi
         
         # Step 8b: Demonstrate Schema Evolution
@@ -192,8 +209,11 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
     echo "   • Basic query:"
     echo "     SELECT * FROM iceberg.demo.sample_data;"
     echo ""
-    echo "   • Time Travel (replace SNAPSHOT_ID):"
+    echo "   • Time Travel by Snapshot ID:"
     echo "     SELECT * FROM iceberg.demo.sample_data FOR VERSION AS OF <snapshot_id>;"
+    echo ""
+    echo "   • Time Travel by Timestamp:"
+    echo "     SELECT * FROM iceberg.demo.sample_data FOR TIMESTAMP AS OF TIMESTAMP '2024-01-01 12:00:00.000 UTC';"
     echo ""
     echo "   • Schema Evolution:"
     echo "     SELECT name, amount, customer_type FROM iceberg.demo.sample_data;"
