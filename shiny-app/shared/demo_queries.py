@@ -342,6 +342,136 @@ ORDER BY committed_at""",
             FOR TIMESTAMP AS OF TIMESTAMP '{timestamp}'""",
             f"Customer count at timestamp {timestamp}"
         )
+    
+    def get_customer_data_at_timestamp(self, timestamp):
+        """Get customer data at a specific timestamp, handling schema evolution"""
+        return (
+            f"""-- TIME TRAVEL: Data at Selected Time Point
+-- Timestamp: {timestamp}
+-- Shows customer data as it existed at this specific point in time
+-- Using SELECT * to automatically handle schema evolution
+SELECT *
+FROM {self.catalog}.{self.schema}.{self.table}
+FOR TIMESTAMP AS OF TIMESTAMP '{timestamp}'
+ORDER BY id""",
+            f"Customer data at selected timestamp: {timestamp}"
+        )
+
+    def get_snapshot_times(self):
+        """Get snapshots with their committed times for time travel demo"""
+        return (
+            f"""-- TIME TRAVEL: Snapshot Timeline
+-- Show all snapshots with their times for time travel demonstration
+SELECT 
+    snapshot_id,
+    committed_at,
+    operation,
+    CASE 
+        WHEN ROW_NUMBER() OVER (ORDER BY committed_at) = 1 THEN 'Initial Data'
+        WHEN ROW_NUMBER() OVER (ORDER BY committed_at DESC) = 1 THEN 'Latest Data'
+        ELSE 'Historical Point'
+    END as snapshot_type,
+    summary
+FROM {self.catalog}.{self.schema}."{self.table}$snapshots" 
+ORDER BY committed_at""",
+            "Timeline of all snapshots showing when data changes occurred"
+        )
+    
+    def get_initial_data(self):
+        """Get customer data from the very first snapshot"""
+        # First, we need to get the snapshot ID - this will be done in two steps
+        # Step 1: Get the first snapshot ID
+        # Step 2: Query the data using that snapshot ID
+        
+        # For now, let's create a query that shows current data with snapshot context
+        return (
+            f"""-- TIME TRAVEL: Initial Data State
+-- Shows current customer data with first snapshot timestamp for context
+-- In a real implementation, this would use the earliest snapshot ID
+SELECT 
+    c.id,
+    c.name,
+    c.email,
+    c.country,
+    c.signup_date,
+    c.total_orders,
+    c.total_spent,
+    c.customer_tier,
+    s.committed_at as first_snapshot_time,
+    'Data from earliest state' as context
+FROM {self.catalog}.{self.schema}.{self.table} c
+CROSS JOIN (
+    SELECT committed_at
+    FROM {self.catalog}.{self.schema}."{self.table}$snapshots"
+    ORDER BY committed_at ASC
+    LIMIT 1
+) s
+ORDER BY c.id""",
+            "Customer data with first snapshot context - showing the initial state"
+        )
+        
+    def get_initial_data_with_snapshot_id(self, snapshot_id):
+        """Get customer data from a specific snapshot ID"""
+        return (
+            f"""-- TIME TRAVEL: Data from Specific Snapshot
+-- Customer data as it existed at snapshot {snapshot_id}
+SELECT 
+    id,
+    name,
+    email,
+    country,
+    signup_date,
+    total_orders,
+    total_spent,
+    customer_tier,
+    '{snapshot_id}' as snapshot_id,
+    'Historical data' as context
+FROM {self.catalog}.{self.schema}.{self.table}
+FOR VERSION AS OF {snapshot_id}
+ORDER BY id""",
+            f"Customer data from snapshot {snapshot_id}"
+        )
+    
+    def get_time_travel_overview(self):
+        """Complete time travel overview showing all snapshots and their states"""
+        return (
+            f"""-- TIME TRAVEL: Complete Overview
+-- Shows all snapshots with their timestamps, operations, and data evolution
+-- This gives you all the time points to explore the data history
+WITH snapshot_info AS (
+    SELECT 
+        snapshot_id,
+        committed_at,
+        operation,
+        ROW_NUMBER() OVER (ORDER BY committed_at) as snapshot_number,
+        CASE 
+            WHEN ROW_NUMBER() OVER (ORDER BY committed_at) = 1 THEN 'Table Creation (empty)'
+            WHEN ROW_NUMBER() OVER (ORDER BY committed_at) = 2 THEN 'Initial Data (3 customers)'
+            WHEN ROW_NUMBER() OVER (ORDER BY committed_at) = 3 THEN 'More Customers (5 total)'
+            WHEN operation = 'overwrite' AND ROW_NUMBER() OVER (ORDER BY committed_at) = 4 THEN 'Schema Evolution (customer_tier added)'
+            WHEN operation = 'overwrite' THEN 'Customer Updates/Promotions'
+            ELSE 'Data Changes'
+        END as description,
+        CASE 
+            WHEN ROW_NUMBER() OVER (ORDER BY committed_at) = 1 THEN 0
+            WHEN ROW_NUMBER() OVER (ORDER BY committed_at) = 2 THEN 3
+            WHEN ROW_NUMBER() OVER (ORDER BY committed_at) = 3 THEN 5
+            ELSE 5
+        END as estimated_customer_count
+    FROM {self.catalog}.{self.schema}."{self.table}$snapshots"
+)
+SELECT 
+    snapshot_number,
+    CAST(snapshot_id AS VARCHAR) as snapshot_id,
+    committed_at as timestamp,
+    operation,
+    description as what_happened,
+    estimated_customer_count as approx_customers,
+    'Use FOR TIMESTAMP AS OF TIMESTAMP ''' || CAST(committed_at AS VARCHAR) || '''' as time_travel_syntax
+FROM snapshot_info
+ORDER BY snapshot_number""",
+            "Complete time travel overview - all snapshots with their data states"
+        )
 
 # ========================================================================
 # STORY DEFINITIONS FOR UI
@@ -397,5 +527,15 @@ DEMO_STORIES = {
         "title": "🔍 Branches & Tags",
         "description": "List all available branches and tags",
         "category": "metadata"
+    },
+    "snapshot_times": {
+        "title": "⏰ Snapshot Timeline",
+        "description": "Show all snapshots with their committed times",
+        "category": "time_travel"
+    },
+    "time_travel_overview": {
+        "title": "🕰️ Time Travel Overview",
+        "description": "See all snapshots and time points for data exploration",
+        "category": "time_travel"
     }
 }

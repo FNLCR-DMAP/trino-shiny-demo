@@ -20,6 +20,12 @@ AVAILABLE_QUERIES = [
         "label": "🏢 Show Warehouse Contents",
         "method": "warehouse_info",
         "class": "btn-info"
+    },
+    {
+        "id": "time_travel_overview",
+        "label": "🕰️ Time Travel Overview",
+        "method": "get_time_travel_overview",
+        "class": "btn-success"
     }
 ]
 
@@ -38,6 +44,29 @@ app_ui = ui.page_fluid(
     
     ui.br(),
     ui.br(),
+    
+    # Interactive Time Travel Selector
+    ui.div(
+        ui.h4("🕰️ Interactive Time Travel"),
+        ui.row(
+            ui.column(8,
+                ui.input_select(
+                    "timepoint_selector",
+                    "Select a Time Point:",
+                    choices={},
+                    selected=None
+                )
+            ),
+            ui.column(4,
+                ui.input_action_button(
+                    "query_selected_timepoint",
+                    "🎯 Query Time Point",
+                    class_="btn-danger"
+                )
+            )
+        ),
+        ui.br()
+    ),
     
     # Two-column layout for query and results
     ui.row(
@@ -63,6 +92,42 @@ def server(input, output, session):
     current_query = reactive.Value("")
     current_results_status = reactive.Value("")
     current_results_data = reactive.Value(None)
+    
+    # Load time points when app starts
+    @reactive.Effect
+    def load_timepoints():
+        try:
+            conn = trino.dbapi.connect(
+                host="trino",
+                port=8080,
+                user="admin",
+                catalog="iceberg"
+            )
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    committed_at,
+                    operation,
+                    ROW_NUMBER() OVER (ORDER BY committed_at) as snap_num
+                FROM iceberg.demo."customers$snapshots" 
+                ORDER BY committed_at
+            """)
+            results = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Create choices for the selector
+            choices = {}
+            for result in results:
+                timestamp, operation, snap_num = result
+                label = f"#{int(snap_num)} - {timestamp} ({operation})"
+                choices[str(timestamp)] = label
+            
+            # Update the selector choices
+            ui.update_select("timepoint_selector", choices=choices)
+            
+        except Exception as e:
+            print(f"Error loading timepoints: {e}")
     
     def execute_query(query_sql, description):
         """Execute a query and update both query and results displays"""
@@ -116,6 +181,25 @@ def server(input, output, session):
             queries = IcebergDemoQueries()
             query_sql, description = queries.warehouse_info()
             execute_query(query_sql, description)
+            
+    @reactive.Effect
+    def handle_time_travel_overview():
+        if input.time_travel_overview():
+            queries = IcebergDemoQueries()
+            query_sql, description = queries.get_time_travel_overview()
+            execute_query(query_sql, description)
+    
+    @reactive.Effect
+    def handle_query_selected_timepoint():
+        if input.query_selected_timepoint():
+            selected_timestamp = input.timepoint_selector()
+            if selected_timestamp:
+                queries = IcebergDemoQueries()
+                query_sql, description = queries.get_customer_data_at_timestamp(selected_timestamp)
+                execute_query(query_sql, description)
+            else:
+                current_results_status.set("❌ Please select a time point first")
+                current_results_data.set(pd.DataFrame())
     
     @output
     @render.text

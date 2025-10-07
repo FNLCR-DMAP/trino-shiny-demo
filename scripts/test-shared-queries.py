@@ -93,6 +93,13 @@ def test_time_travel():
         ("schema_evolution", queries.story_schema_evolution)
     ]
     
+    # Test 3: Test new time travel demo methods
+    time_travel_demo_methods = [
+        ("snapshot_times", queries.get_snapshot_times),
+        ("initial_data", queries.get_initial_data),
+        ("updated_data_comparison", queries.get_updated_data_comparison)
+    ]
+    
     for story_name, story_method in test_stories:
         print(f"   → Testing story: {story_name}")
         query_sql, description = story_method()
@@ -102,6 +109,22 @@ def test_time_travel():
             print(f"     ✅ {story_name} query successful")
         else:
             print(f"     ❌ {story_name} query failed: {output}")
+    
+    # Test the new time travel demo methods specifically
+    print("   → Testing new time travel demo methods...")
+    for demo_name, demo_method in time_travel_demo_methods:
+        print(f"     → Testing {demo_name}...")
+        query_sql, description = demo_method()
+        success, output = run_trino_query(query_sql)
+        
+        if success:
+            print(f"       ✅ {demo_name} query successful")
+            # Show a sample of the output for verification
+            lines = output.split('\n')
+            if len(lines) > 1:
+                print(f"       📊 Sample result: {lines[1][:50]}...")
+        else:
+            print(f"       ❌ {demo_name} query failed: {output}")
     
     return True
 
