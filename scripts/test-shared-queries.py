@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test runner for Iceberg demo queries using the shared query module.
-This ensures consistency between test scripts and the Shiny app.
+Test runner for Shiny app methods using the shared query module.
+Focuses only on methods actually used in the Shiny application.
 """
 
 import sys
@@ -61,163 +61,51 @@ def test_connectivity():
         return False
 
 
-def test_time_travel():
-    """Test time travel functionality using shared queries"""
-    print("2. Testing time travel functionality...")
+def test_app_methods():
+    """Test methods actually used in the Shiny app"""
+    print("2. Testing Shiny app methods...")
     queries = IcebergDemoQueries()
     
-    # Test 1: Get snapshots
-    print("   → Getting available snapshots...")
-    query_sql, description = queries.get_snapshots()
-    success, output = run_trino_query(query_sql)
-    
-    if not success:
-        print(f"   ❌ Failed to get snapshots: {output}")
-        return False
-    
-    # Extract snapshot IDs (simple parsing)
-    lines = output.split('\n')[1:]  # Skip header
-    snapshot_count = len([line for line in lines if line.strip() and not line.startswith('-')])
-    
-    if snapshot_count > 0:
-        print(f"   ✅ Found {snapshot_count} snapshots")
-    else:
-        print("   ❌ No snapshots found")
-        return False
-    
-    # Test 2: Test story queries
-    test_stories = [
-        ("current_data", queries.story_current_data),
-        ("first_snapshot", queries.story_first_snapshot),
-        ("data_evolution", queries.story_data_evolution),
-        ("schema_evolution", queries.story_schema_evolution)
+    # Test methods used in app.py
+    app_methods = [
+        ("warehouse_info", queries.warehouse_info),
+        ("time_travel_overview", queries.get_time_travel_overview),
+        ("customer_data_at_timestamp", lambda: queries.get_customer_data_at_timestamp("2025-10-07 17:24:16.681"))
     ]
     
-    # Test 3: Test new time travel demo methods
-    time_travel_demo_methods = [
-        ("snapshot_times", queries.get_snapshot_times),
-        ("initial_data", queries.get_initial_data),
-        ("updated_data_comparison", queries.get_updated_data_comparison)
-    ]
-    
-    for story_name, story_method in test_stories:
-        print(f"   → Testing story: {story_name}")
-        query_sql, description = story_method()
+    for method_name, method_func in app_methods:
+        print(f"   → Testing {method_name}...")
+        query_sql, description = method_func()
         success, output = run_trino_query(query_sql)
         
         if success:
-            print(f"     ✅ {story_name} query successful")
-        else:
-            print(f"     ❌ {story_name} query failed: {output}")
-    
-    # Test the new time travel demo methods specifically
-    print("   → Testing new time travel demo methods...")
-    for demo_name, demo_method in time_travel_demo_methods:
-        print(f"     → Testing {demo_name}...")
-        query_sql, description = demo_method()
-        success, output = run_trino_query(query_sql)
-        
-        if success:
-            print(f"       ✅ {demo_name} query successful")
+            print(f"   ✅ {method_name} query successful")
             # Show a sample of the output for verification
             lines = output.split('\n')
             if len(lines) > 1:
-                print(f"       📊 Sample result: {lines[1][:50]}...")
+                print(f"     📊 Sample result: {lines[1][:50]}...")
         else:
-            print(f"       ❌ {demo_name} query failed: {output}")
-    
-    return True
-
-
-def test_branching():
-    """Test branching functionality using shared queries"""
-    print("3. Testing branching functionality...")
-    queries = IcebergDemoQueries()
-    
-    # Test 1: List branches and refs
-    print("   → Testing branch listing...")
-    query_sql, description = queries.get_branches_and_refs()
-    success, output = run_trino_query(query_sql)
-    
-    if success:
-        print("   ✅ Branch listing successful")
-        print(f"     Available refs: {len(output.split(chr(10))) - 1}")
-    else:
-        print(f"   ❌ Branch listing failed: {output}")
-        return False
-    
-    # Test 2: Main branch query
-    print("   → Testing main branch query...")
-    query_sql, description = queries.story_main_branch()
-    success, output = run_trino_query(query_sql)
-    
-    if success:
-        print("   ✅ Main branch query successful")
-    else:
-        print(f"   ❌ Main branch query failed: {output}")
-    
-    # Test 3: Branch comparison
-    print("   → Testing branch comparison...")
-    query_sql, description = queries.story_branch_comparison()
-    success, output = run_trino_query(query_sql)
-    
-    if success:
-        print("   ✅ Branch comparison successful")
-    else:
-        print(f"   ❌ Branch comparison failed: {output}")
-    
-    return True
-
-
-def test_metadata():
-    """Test metadata exploration using shared queries"""
-    print("4. Testing metadata functionality...")
-    queries = IcebergDemoQueries()
-    
-    test_queries = [
-        ("file_metadata", queries.story_file_metadata),
-        ("snapshot_history", queries.story_snapshot_history)
-    ]
-    
-    for test_name, query_method in test_queries:
-        print(f"   → Testing {test_name}...")
-        query_sql, description = query_method()
-        success, output = run_trino_query(query_sql)
-        
-        if success:
-            print(f"   ✅ {test_name} successful")
-        else:
-            print(f"   ❌ {test_name} failed: {output}")
+            print(f"   ❌ {method_name} query failed: {output}")
     
     return True
 
 
 def main():
-    """Main test runner"""
-    test_type = sys.argv[1] if len(sys.argv) > 1 else "all"
-    
-    print("🧪 Testing Iceberg Demo Queries (Using Shared Module)")
-    print("=" * 55)
+    """Main test runner - focused on Shiny app methods only"""
+    print("🧪 Testing Shiny App Methods (Shared Module)")
+    print("=" * 45)
     print()
     
-    if test_type in ["all", "connectivity"]:
-        if not test_connectivity():
-            sys.exit(1)
-        print()
+    # Test basic connectivity
+    if not test_connectivity():
+        sys.exit(1)
+    print()
     
-    if test_type in ["all", "time-travel"]:
-        test_time_travel()
-        print()
+    # Test methods used in the Shiny app
+    test_app_methods()
+    print()
     
-    if test_type in ["all", "branching"]:
-        test_branching()
-        print()
-    
-    if test_type in ["all", "metadata"]:
-        test_metadata()
-        print()
-    
-    print("🎉 All tests completed!")
+    print("🎉 All Shiny app tests completed!")
 
 
 if __name__ == "__main__":

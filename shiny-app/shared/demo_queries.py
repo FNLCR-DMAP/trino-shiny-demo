@@ -69,19 +69,6 @@ ORDER BY resource_type""",
             "Overview of available catalogs, schemas, and tables in the warehouse"
         )
     
-    def get_snapshots(self):
-        """Get all available snapshots with metadata"""
-        return (
-            f"""SELECT 
-                snapshot_id,
-                committed_at,
-                operation,
-                summary
-            FROM {self.catalog}.{self.schema}."{self.table}$snapshots" 
-            ORDER BY committed_at""",
-            "List all available table snapshots with metadata"
-        )
-    
     def get_branches_and_refs(self):
         """Get all available branches and tags"""
         return (
@@ -214,30 +201,6 @@ FROM {self.catalog}.{self.schema}.{self.table}""",
             "See how Iceberg handles schema evolution gracefully"
         )
     
-    def story_detailed_customer_tiers(self):
-        """Story: Show detailed customer tier analysis"""
-        return (
-            f"""-- STORY: Customer Tier Analysis
--- Only recent snapshots have the customer_tier column
-WITH recent_snapshot AS (
-    SELECT snapshot_id 
-    FROM {self.catalog}.{self.schema}."{self.table}$snapshots" 
-    ORDER BY committed_at DESC 
-    LIMIT 1 OFFSET 1  -- Second most recent to show evolution
-)
-SELECT 
-    customer_tier,
-    COUNT(*) as customers,
-    ROUND(AVG(total_spent), 2) as avg_spent,
-    ROUND(SUM(total_spent), 2) as total_revenue
-FROM {self.catalog}.{self.schema}.{self.table} 
-FOR VERSION AS OF (SELECT snapshot_id FROM recent_snapshot)
-WHERE customer_tier IS NOT NULL
-GROUP BY customer_tier
-ORDER BY total_revenue DESC""",
-            "Analyze customer tiers from when that feature was introduced"
-        )
-    
     # ========================================================================
     # BRANCHING DEMOS
     # ========================================================================
@@ -323,26 +286,6 @@ ORDER BY committed_at""",
     # UTILITY QUERIES FOR TESTING
     # ========================================================================
     
-    def count_by_snapshot(self, snapshot_id):
-        """Get customer count for a specific snapshot"""
-        return (
-            f"""SELECT 
-                COUNT(*) as customer_count, 
-                ROUND(COALESCE(SUM(total_spent), 0), 2) as total_revenue
-            FROM {self.catalog}.{self.schema}.{self.table} 
-            FOR VERSION AS OF {snapshot_id}""",
-            f"Customer count and revenue for snapshot {snapshot_id}"
-        )
-    
-    def test_timestamp_query(self, timestamp):
-        """Test timestamp-based time travel"""
-        return (
-            f"""SELECT COUNT(*) as customer_count 
-            FROM {self.catalog}.{self.schema}.{self.table} 
-            FOR TIMESTAMP AS OF TIMESTAMP '{timestamp}'""",
-            f"Customer count at timestamp {timestamp}"
-        )
-    
     def get_customer_data_at_timestamp(self, timestamp):
         """Get customer data at a specific timestamp, handling schema evolution"""
         return (
@@ -410,28 +353,6 @@ ORDER BY c.id""",
             "Customer data with first snapshot context - showing the initial state"
         )
         
-    def get_initial_data_with_snapshot_id(self, snapshot_id):
-        """Get customer data from a specific snapshot ID"""
-        return (
-            f"""-- TIME TRAVEL: Data from Specific Snapshot
--- Customer data as it existed at snapshot {snapshot_id}
-SELECT 
-    id,
-    name,
-    email,
-    country,
-    signup_date,
-    total_orders,
-    total_spent,
-    customer_tier,
-    '{snapshot_id}' as snapshot_id,
-    'Historical data' as context
-FROM {self.catalog}.{self.schema}.{self.table}
-FOR VERSION AS OF {snapshot_id}
-ORDER BY id""",
-            f"Customer data from snapshot {snapshot_id}"
-        )
-    
     def get_time_travel_overview(self):
         """Complete time travel overview showing all snapshots and their states"""
         return (
@@ -473,69 +394,37 @@ ORDER BY snapshot_number""",
             "Complete time travel overview - all snapshots with their data states"
         )
 
-# ========================================================================
-# STORY DEFINITIONS FOR UI
-# ========================================================================
-
-DEMO_STORIES = {
-    "current_data": {
-        "title": "📊 Current Data",
-        "description": "See what our customer database looks like right now",
-        "category": "basics"
-    },
-    "first_snapshot": {
-        "title": "🕐 The Beginning", 
-        "description": "Travel back to the very first snapshot - how it all started",
-        "category": "time_travel"
-    },
-    "data_evolution": {
-        "title": "📈 Data Evolution",
-        "description": "Watch how customers and revenue grew over time",
-        "category": "time_travel"
-    },
-    "schema_evolution": {
-        "title": "🔄 Schema Evolution",
-        "description": "See how Iceberg handles new columns gracefully", 
-        "category": "time_travel"
-    },
-    "customer_tiers": {
-        "title": "👑 Customer Tiers",
-        "description": "Analyze customer tiers from when that feature was added",
-        "category": "time_travel"
-    },
-    "main_branch": {
-        "title": "🌿 Main Branch",
-        "description": "Query the main branch explicitly",
-        "category": "branching"
-    },
-    "branch_comparison": {
-        "title": "⚖️ Branch vs Snapshot",
-        "description": "Compare production data with historical snapshots", 
-        "category": "branching"
-    },
-    "file_metadata": {
-        "title": "🗂️ File Organization", 
-        "description": "See how Iceberg organizes data files under the hood",
-        "category": "metadata"
-    },
-    "snapshot_history": {
-        "title": "📚 Snapshot Journey",
-        "description": "Journey through every snapshot chronologically",
-        "category": "metadata"
-    },
-    "branches_and_refs": {
-        "title": "🔍 Branches & Tags",
-        "description": "List all available branches and tags",
-        "category": "metadata"
-    },
-    "snapshot_times": {
-        "title": "⏰ Snapshot Timeline",
-        "description": "Show all snapshots with their committed times",
-        "category": "time_travel"
-    },
-    "time_travel_overview": {
-        "title": "🕰️ Time Travel Overview",
-        "description": "See all snapshots and time points for data exploration",
-        "category": "time_travel"
-    }
-}
+    def get_updated_data_comparison(self):
+        """Compare initial vs updated data showing evolution"""
+        return (
+            f"""-- TIME TRAVEL: Data Evolution Comparison
+-- Compare the initial data state with the most recent update
+WITH first_and_latest AS (
+    SELECT 
+        'Initial State' as data_state,
+        COUNT(*) as customer_count,
+        ROUND(SUM(total_spent), 2) as total_revenue
+    FROM {self.catalog}.{self.schema}.{self.table}
+    FOR VERSION AS OF (
+        SELECT snapshot_id FROM {self.catalog}.{self.schema}."{self.table}$snapshots" 
+        ORDER BY committed_at ASC LIMIT 1
+    )
+    
+    UNION ALL
+    
+    SELECT 
+        'Current State' as data_state,
+        COUNT(*) as customer_count,
+        ROUND(SUM(total_spent), 2) as total_revenue
+    FROM {self.catalog}.{self.schema}.{self.table}
+)
+SELECT 
+    data_state,
+    customer_count,
+    total_revenue,
+    customer_count - LAG(customer_count) OVER (ORDER BY data_state) as customer_growth,
+    total_revenue - LAG(total_revenue) OVER (ORDER BY data_state) as revenue_growth
+FROM first_and_latest
+ORDER BY data_state""",
+            "Compare initial snapshot with current data to show evolution"
+        )
