@@ -218,6 +218,49 @@ SELECT
 FROM {self.catalog}.{self.schema}.{self.table} FOR VERSION AS OF 'main'""",
             "Query the main branch - this is your production data"
         )
+
+    def get_main_branch_count(self, table="products", schema="branching_demo"):
+        """Get product count from main branch - matches init-demo-data.sh functionality"""
+        return (
+            f"""-- BRANCHING: Main Branch Product Count
+-- Count products in the main branch (production data)
+SELECT COUNT(*) as product_count
+FROM {self.catalog}.{schema}.{table}""",
+            f"Product count in main branch of {schema}.{table}"
+        )
+
+    def get_dev_branch_count(self, table="products", schema="branching_demo"):
+        """Get product count from dev branch - matches init-demo-data.sh functionality"""
+        return (
+            f"""-- BRANCHING: Dev Branch Product Count  
+-- Count products in the dev branch (created by Spark, queried by Trino)
+SELECT COUNT(*) as product_count
+FROM {self.catalog}.{schema}.{table} FOR VERSION AS OF 'dev'""",
+            f"Product count in dev branch of {schema}.{table}"
+        )
+
+    def compare_main_vs_dev_branches(self, table="products", schema="branching_demo"):
+        """Compare main vs dev branch product counts - ultimate branching demo"""
+        return (
+            f"""-- BRANCHING: Main vs Dev Branch Comparison
+-- THE ULTIMATE DEMO: Compare main branch vs Spark-created dev branch
+SELECT 
+    'main' as branch_name,
+    COUNT(*) as product_count,
+    'Production Branch' as description
+FROM {self.catalog}.{schema}.{table}
+
+UNION ALL
+
+SELECT 
+    'dev' as branch_name, 
+    COUNT(*) as product_count,
+    'Development Branch (Spark-created)' as description
+FROM {self.catalog}.{schema}.{table} FOR VERSION AS OF 'dev'
+
+ORDER BY branch_name""",
+            f"Compare main vs dev branch product counts for {schema}.{table}"
+        )
     
     def story_branch_comparison(self):
         """Story: Compare main branch with a specific snapshot"""

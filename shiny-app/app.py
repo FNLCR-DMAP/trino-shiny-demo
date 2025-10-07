@@ -26,6 +26,12 @@ AVAILABLE_QUERIES = [
         "label": "🕰️ Time Travel Overview",
         "method": "get_time_travel_overview",
         "class": "btn-success"
+    },
+    {
+        "id": "main_vs_dev_branches",
+        "label": "🌿 Main vs Dev Branches",
+        "method": "compare_main_vs_dev_branches",
+        "class": "btn-warning"
     }
 ]
 
@@ -187,6 +193,13 @@ def server(input, output, session):
         if input.time_travel_overview():
             queries = IcebergDemoQueries()
             query_sql, description = queries.get_time_travel_overview()
+            execute_query(query_sql, description)
+            
+    @reactive.Effect
+    def handle_main_vs_dev_branches():
+        if input.main_vs_dev_branches():
+            queries = IcebergDemoQueries()
+            query_sql, description = queries.compare_main_vs_dev_branches()
             execute_query(query_sql, description)
     
     @reactive.Effect

@@ -90,10 +90,43 @@ def test_app_methods():
     return True
 
 
+def test_branching_methods():
+    """Test new branching functionality - matches init-demo-data.sh"""
+    print("3. Testing branching methods...")
+    queries = IcebergDemoQueries()
+    
+    # Test the new branching methods
+    branching_methods = [
+        ("main_branch_count", queries.get_main_branch_count),
+        ("dev_branch_count", queries.get_dev_branch_count), 
+        ("main_vs_dev_comparison", queries.compare_main_vs_dev_branches)
+    ]
+    
+    for method_name, method_func in branching_methods:
+        print(f"   → Testing {method_name}...")
+        query_sql, description = method_func()
+        success, output = run_trino_query(query_sql)
+        
+        if success:
+            print(f"   ✅ {method_name} query successful")
+            # Show the actual count/result for verification
+            lines = output.split('\n')
+            if len(lines) > 1:
+                result_line = lines[1].strip().strip('"')
+                if method_name.endswith('_count'):
+                    print(f"     📊 Product count: {result_line}")
+                else:
+                    print(f"     📊 Sample result: {result_line[:50]}...")
+        else:
+            print(f"   ❌ {method_name} query failed: {output}")
+    
+    return True
+
+
 def main():
-    """Main test runner - focused on Shiny app methods only"""
-    print("🧪 Testing Shiny App Methods (Shared Module)")
-    print("=" * 45)
+    """Main test runner - Shiny app methods + new branching features"""
+    print("🧪 Testing Shiny App & Branching Methods (Shared Module)")
+    print("=" * 55)
     print()
     
     # Test basic connectivity
@@ -105,7 +138,11 @@ def main():
     test_app_methods()
     print()
     
-    print("🎉 All Shiny app tests completed!")
+    # Test new branching functionality
+    test_branching_methods()
+    print()
+    
+    print("🎉 All tests completed!")
 
 
 if __name__ == "__main__":
