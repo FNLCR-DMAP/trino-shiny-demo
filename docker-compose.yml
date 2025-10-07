@@ -116,6 +116,9 @@ services:
       - iceberg-net
     environment:
       - PYTHONUNBUFFERED=1
+    volumes:
+      - ./shiny-app/app.py:/app/app.py
+      - ./shiny-app/shared:/app/shared
 
 volumes:
   postgres-data:

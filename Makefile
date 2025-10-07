@@ -1,7 +1,7 @@
 # Trino + Iceberg + Shiny Frontend Stack
 # =====================================
 
-.PHONY: help build start stop restart clean logs status demo verify
+.PHONY: help build start stop restart clean logs status demo verify shiny-dev shiny-rebuild
 
 # Default target
 help:
@@ -18,9 +18,10 @@ help:
 	@echo "  make clean     - Remove containers and volumes"
 	@echo ""
 	@echo "📊 Individual Services:"
-	@echo "  make trino     - Start only Trino stack (no Shiny)"
-	@echo "  make shiny     - Start/restart only Shiny app"
-	@echo "  make rebuild-shiny - Rebuild and restart Shiny app"
+	@echo "  make trino           - Start only Trino stack (no Shiny)"
+	@echo "  make shiny           - Start/restart only Shiny app (basic restart)"
+	@echo "  make shiny-dev       - Shiny development restart - picks up all Python changes"
+	@echo "  make shiny-rebuild   - Rebuild and restart Shiny app (for dependencies)"
 	@echo ""
 	@echo "🔍 Monitoring:"
 	@echo "  make status    - Show container status"
@@ -64,19 +65,51 @@ trino:
 	@echo "✅ Trino stack started!"
 	@echo "📊 Trino Web UI: http://localhost:8081"
 
-# Start/restart only Shiny app
+# Start/restart only Shiny app (basic restart)
 shiny:
 	@echo "🔄 Restarting Shiny app..."
 	docker-compose restart shiny-app
 	@echo "✅ Shiny app restarted!"
 	@echo "🌐 Frontend: http://localhost:8000"
 
+# Shiny development restart - picks up all Python module changes
+shiny-dev:
+	@echo "🔄 Shiny Development Restart - Recreating container..."
+	@echo "This ensures all Python module changes are picked up!"
+	docker-compose stop shiny-app
+	docker-compose rm -f shiny-app
+	docker-compose up -d shiny-app
+	@echo "⏳ Waiting for container to start..."
+	@sleep 3
+	@echo "🔍 Validating volume mounts..."
+	@if docker-compose exec -T shiny-app test -f /app/app.py; then \
+		echo "✅ Volume mounts verified - app.py is accessible"; \
+	else \
+		echo "❌ Warning: app.py not found in container"; \
+	fi
+	@if docker-compose exec -T shiny-app test -d /app/shared; then \
+		echo "✅ Volume mounts verified - shared/ directory is accessible"; \
+	else \
+		echo "❌ Warning: shared/ directory not found in container"; \
+	fi
+	@echo "📋 Recent logs:"
+	@docker-compose logs --tail=5 shiny-app
+	@echo ""
+	@echo "🚀 App available at: http://localhost:8000"
+	@echo "📝 Container recreated - all Python changes picked up!"
+
 # Rebuild and restart Shiny app (for dependency changes)
-rebuild-shiny:
-	@echo "🔨 Rebuilding Shiny app..."
+shiny-rebuild:
+	@echo "🔨 Rebuilding Shiny app image..."
 	docker build -t trino-shiny-app ./shiny-app
-	docker-compose restart shiny-app
+	@echo "🔄 Recreating container with new image..."
+	docker-compose stop shiny-app
+	docker-compose rm -f shiny-app
+	docker-compose up -d shiny-app
+	@echo "⏳ Waiting for container to start..."
+	@sleep 3
 	@echo "✅ Shiny app rebuilt and restarted!"
+	@echo "🌐 Frontend: http://localhost:8000"
 
 # Stop all containers
 stop:

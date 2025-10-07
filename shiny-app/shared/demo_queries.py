@@ -29,6 +29,46 @@ class IcebergDemoQueries:
             "Basic Trino connectivity test"
         )
     
+    def warehouse_info(self):
+        """Get warehouse information - catalogs, schemas, and tables"""
+        return (
+            f"""-- WAREHOUSE OVERVIEW
+-- Show available catalogs, schemas, and tables
+WITH warehouse_summary AS (
+    SELECT 
+        'Catalogs' as resource_type,
+        COUNT(*) as count,
+        ARRAY_JOIN(ARRAY_AGG(catalog_name), ', ') as items
+    FROM system.metadata.catalogs
+    WHERE catalog_name NOT IN ('system', 'tpcds', 'tpch', 'jmx', 'memory')
+    
+    UNION ALL
+    
+    SELECT 
+        'Schemas in ' || '{self.catalog}' as resource_type,
+        COUNT(*) as count,
+        ARRAY_JOIN(ARRAY_AGG(schema_name), ', ') as items
+    FROM {self.catalog}.information_schema.schemata
+    WHERE schema_name != 'information_schema'
+    
+    UNION ALL
+    
+    SELECT 
+        'Tables in ' || '{self.catalog}.{self.schema}' as resource_type,
+        COUNT(*) as count,
+        ARRAY_JOIN(ARRAY_AGG(table_name), ', ') as items
+    FROM {self.catalog}.information_schema.tables
+    WHERE table_schema = '{self.schema}'
+)
+SELECT 
+    resource_type,
+    count,
+    items as available_items
+FROM warehouse_summary
+ORDER BY resource_type""",
+            "Overview of available catalogs, schemas, and tables in the warehouse"
+        )
+    
     def get_snapshots(self):
         """Get all available snapshots with metadata"""
         return (
