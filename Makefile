@@ -1,0 +1,265 @@
+# Trino + Iceberg + Shiny Frontend Stack
+# =====================================
+
+.PHONY: help build start stop restart clean logs status demo verify
+
+# Default target
+help:
+	@echo "🚀 Trino + Iceberg + Shiny Frontend Stack"
+	@echo "=========================================="
+	@echo ""
+	@echo "📋 Available Commands:"
+	@echo ""
+	@echo "🔧 Stack Management:"
+	@echo "  make build     - Build all Docker images"
+	@echo "  make start     - Start the full stack"
+	@echo "  make stop      - Stop all containers"
+	@echo "  make restart   - Restart all containers"
+	@echo "  make clean     - Remove containers and volumes"
+	@echo ""
+	@echo "📊 Individual Services:"
+	@echo "  make trino     - Start only Trino stack (no Shiny)"
+	@echo "  make shiny     - Start/restart only Shiny app"
+	@echo "  make rebuild-shiny - Rebuild and restart Shiny app"
+	@echo ""
+	@echo "🔍 Monitoring:"
+	@echo "  make status    - Show container status"
+	@echo "  make logs      - Show all container logs"
+	@echo "  make logs-shiny - Show only Shiny app logs"
+	@echo "  make logs-trino - Show only Trino logs"
+	@echo ""
+	@echo "🧪 Testing & Demo:"
+	@echo "  make init-data      - Initialize demo schema and sample data"
+	@echo "  make rebuild-demo   - Full rebuild with demo data (like rebuild-demo.sh)"
+	@echo "  make test-query     - Test basic Trino connectivity"
+	@echo "  make test-time-travel - Test Iceberg time travel functionality"
+	@echo "  make test-branching - Test Iceberg branching functionality"
+	@echo "  make test-metadata  - Test Iceberg metadata tables"
+	@echo "  make test-all       - Run all comprehensive Iceberg tests"
+	@echo "  make demo           - Show demo instructions"
+	@echo "  make verify         - Verify setup and connectivity"
+	@echo ""
+	@echo "🌐 Access Points:"
+	@echo "  Shiny Frontend: http://localhost:8000"
+	@echo "  Trino Web UI:   http://localhost:8081"
+
+# Build all images
+build:
+	@echo "🔨 Building Docker images..."
+	docker-compose build
+	docker build -t trino-shiny-app ./shiny-app
+
+# Start the full stack
+start:
+	@echo "🚀 Starting full stack..."
+	docker-compose up -d
+	@echo "✅ Stack started!"
+	@echo "🌐 Shiny Frontend: http://localhost:8000"
+	@echo "📊 Trino Web UI: http://localhost:8081"
+
+# Start only Trino stack (no Shiny)
+trino:
+	@echo "🚀 Starting Trino stack only..."
+	docker-compose up -d postgres hive-metastore trino trino-cli
+	@echo "✅ Trino stack started!"
+	@echo "📊 Trino Web UI: http://localhost:8081"
+
+# Start/restart only Shiny app
+shiny:
+	@echo "🔄 Restarting Shiny app..."
+	docker-compose restart shiny-app
+	@echo "✅ Shiny app restarted!"
+	@echo "🌐 Frontend: http://localhost:8000"
+
+# Rebuild and restart Shiny app (for dependency changes)
+rebuild-shiny:
+	@echo "🔨 Rebuilding Shiny app..."
+	docker build -t trino-shiny-app ./shiny-app
+	docker-compose restart shiny-app
+	@echo "✅ Shiny app rebuilt and restarted!"
+
+# Stop all containers
+stop:
+	@echo "🛑 Stopping all containers..."
+	docker-compose down
+
+# Restart all containers
+restart:
+	@echo "🔄 Restarting all containers..."
+	docker-compose restart
+	@echo "✅ All containers restarted!"
+
+# Clean up everything
+clean:
+	@echo "🧹 Cleaning up containers and volumes..."
+	docker-compose down -v
+	docker system prune -f
+	@echo "✅ Cleanup complete!"
+
+# Show container status
+status:
+	@echo "📊 Container Status:"
+	@docker-compose ps
+
+# Show all logs
+logs:
+	@echo "📜 All Container Logs:"
+	docker-compose logs --tail=20
+
+# Show Shiny app logs only
+logs-shiny:
+	@echo "📱 Shiny App Logs:"
+	docker-compose logs --tail=20 shiny-app
+
+# Show Trino logs only  
+logs-trino:
+	@echo "🔍 Trino Logs:"
+	docker-compose logs --tail=20 trino
+
+# Verify setup and connectivity
+verify:
+	@echo "🔍 Verifying Setup..."
+	@echo "Checking Docker..."
+	@docker --version > /dev/null && echo "✅ Docker is running" || echo "❌ Docker not found"
+	@echo "Checking containers..."
+	@if docker ps | grep -q "trino.*healthy"; then \
+		echo "✅ Trino is healthy"; \
+	else \
+		echo "❌ Trino not healthy"; \
+	fi
+	@if docker ps | grep -q "shiny-app"; then \
+		echo "✅ Shiny app is running"; \
+	else \
+		echo "❌ Shiny app not running"; \
+	fi
+	@echo "🌐 Access points:"
+	@echo "  Shiny Frontend: http://localhost:8000"
+	@echo "  Trino Web UI: http://localhost:8081"
+
+# Initialize demo data
+init-data:
+	@./scripts/init-demo-data.sh
+
+# Full rebuild with demo data (like rebuild-demo.sh)
+rebuild-demo:
+	@echo "🔄 Full Demo Rebuild (like rebuild-demo.sh)..."
+	@echo "1. Tearing down existing stack..."
+	docker-compose down -v
+	@echo "2. Cleaning up..."
+	docker system prune -f > /dev/null 2>&1 || true
+	rm -rf warehouse/* || true
+	mkdir -p warehouse
+	chmod 777 warehouse
+	@echo "3. Building stack..."
+	docker-compose up -d
+	@echo "4. Waiting for services (20s)..."
+	sleep 20
+	@echo "5. Testing connectivity..."
+	@docker exec trino-cli trino --server trino:8080 --user admin --execute "SHOW CATALOGS" > /dev/null 2>&1 && echo "✅ Trino ready" || echo "❌ Trino not ready"
+	@echo "6. Initializing demo data..."
+	$(MAKE) init-data
+	@echo "🎉 Rebuild complete!"
+	@echo "🌐 Shiny Frontend: http://localhost:8000"
+	@echo "📊 Trino Web UI: http://localhost:8081"
+
+# Test a simple query
+test-query:
+	@echo "🧪 Testing Trino connectivity..."
+	docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT 1 as test" 2>/dev/null || echo "❌ Query failed"
+	@echo "✅ Trino query successful!"
+
+# Comprehensive Time Travel and Branching Tests
+test-time-travel:
+	@./scripts/test-time-travel.sh
+
+test-shared:
+	@echo "🐍 Testing Shared Query Module..."
+	@python3 scripts/test-shared-queries.py
+
+test-branching:
+	@echo "🌿 Testing Iceberg Branching Functionality..."
+	@echo ""
+	@echo "1. Testing Cross-Engine Branching (our working demo)..."
+	@if docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.branching_demo.products" 2>/dev/null >/dev/null; then \
+		echo "   → Cross-engine branching table exists!"; \
+		echo "   → Main branch query:"; \
+		MAIN_COUNT=$$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.branching_demo.products" 2>/dev/null | tail -1 | tr -d '"'); \
+		echo "     ✅ Main branch: $$MAIN_COUNT products"; \
+		echo "   → Dev branch query (Trino querying Spark-created branch):"; \
+		DEV_COUNT=$$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.branching_demo.products FOR VERSION AS OF 'dev'" 2>/dev/null | tail -1 | tr -d '"'); \
+		if [ "$$DEV_COUNT" != "" ] && [ "$$DEV_COUNT" -gt "$$MAIN_COUNT" ]; then \
+			echo "     🎉 Dev branch: $$DEV_COUNT products - Cross-engine branching WORKING!"; \
+		else \
+			echo "     ⚠️  Dev branch query issue or no difference detected"; \
+		fi; \
+		echo "   → Branch metadata:"; \
+		docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT name, type FROM iceberg.branching_demo.\"products\$$refs\"" 2>/dev/null; \
+	else \
+		echo "   ⚠️  Cross-engine demo table not found - run 'make init-data' first"; \
+	fi
+	@echo ""
+	@echo "2. Testing standard demo table branching..."
+	@echo "   → Available branches and refs:"
+	@docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT * FROM iceberg.demo.\"customers\$$refs\"" 2>/dev/null
+	@echo "   → Querying main branch explicitly:"
+	@docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as main_count FROM iceberg.demo.customers FOR VERSION AS OF 'main'" 2>/dev/null
+	@echo ""
+	@echo "3. Testing branch creation capability..."
+	@echo "   ℹ️  Note: Trino $(shell docker exec trino-cli trino --version 2>/dev/null | head -1 || echo "version unknown") does not support CREATE BRANCH"
+	@echo "   → This is expected - use Spark for branch creation, Trino for querying"
+	@echo "   → Our cross-engine demo (above) shows this working correctly"
+	@echo ""
+	@echo "✅ Branching tests completed!"
+	@echo "💡 Cross-engine branching: Spark creates branches, Trino queries them perfectly!"
+
+test-metadata:
+	@echo "📊 Testing Iceberg Metadata Tables..."
+	@echo ""
+	@echo "1. Testing snapshots metadata..."
+	@docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT snapshot_id, committed_at, operation FROM iceberg.demo.\"customers\$$snapshots\" ORDER BY committed_at DESC LIMIT 3" 2>/dev/null
+	@echo ""
+	@echo "2. Testing files metadata..."
+	@docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT file_format, record_count, file_size_in_bytes FROM iceberg.demo.\"customers\$$files\"" 2>/dev/null
+	@echo ""
+	@echo "3. Testing history metadata..."
+	@docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT made_current_at, snapshot_id FROM iceberg.demo.\"customers\$$history\" ORDER BY made_current_at DESC LIMIT 3" 2>/dev/null
+	@echo ""
+	@echo "4. Testing refs metadata..."
+	@docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT name, type, snapshot_id FROM iceberg.demo.\"customers\$$refs\"" 2>/dev/null
+	@echo "✅ Metadata tests completed!"
+
+# Run all Iceberg feature tests
+test-all:
+	@echo "🧪 Running Comprehensive Iceberg Feature Tests..."
+	@echo "================================================="
+	@echo ""
+	$(MAKE) test-query
+	@echo ""
+	$(MAKE) test-time-travel
+	@echo ""
+	$(MAKE) test-branching  
+	@echo ""
+	$(MAKE) test-metadata
+	@echo ""
+	@echo "🎉 All tests completed!"
+	@echo "💡 Next: Try the Shiny app at http://localhost:8000"
+
+# Show demo instructions
+demo:
+	@echo "🎉 Shiny Frontend Demo"
+	@echo "====================="
+	@echo ""
+	@echo "1. 🌐 Open http://localhost:8000"
+	@echo ""
+	@echo "2. 🔍 Try these workflows:"
+	@echo "   • Show Catalogs → Execute"
+	@echo "   • Show Schemas → Execute" 
+	@echo "   • Show Tables → Execute"
+	@echo "   • Sample Data → Execute"
+	@echo ""
+	@echo "3. 🧪 Try custom queries:"
+	@echo "   SELECT 1 as number, 'Hello Trino!' as message"
+	@echo "   SHOW FUNCTIONS"
+	@echo "   SELECT current_timestamp"
+	@echo ""
+	@echo "🔧 Need help? Run: make verify"

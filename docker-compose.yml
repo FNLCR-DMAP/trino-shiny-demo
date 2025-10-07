@@ -24,6 +24,7 @@ services:
   hive-metastore:
     image: apache/hive:4.0.0
     container_name: hive-metastore
+    user: "0:0"
     environment:
       - SERVICE_NAME=metastore
       - IS_RESUME=false
@@ -32,7 +33,7 @@ services:
       - "9083:9083"
     volumes:
       - ./hive-site.xml:/opt/hive/conf/hive-site.xml
-      - ./warehouse:/opt/hive/data/warehouse
+      - ./warehouse:/data/warehouse
       - ./hive/lib/postgresql-42.6.0.jar:/opt/hive/lib/postgresql-42.6.0.jar
     networks:
       - iceberg-net
@@ -44,6 +45,7 @@ services:
   trino:
     image: trinodb/trino:435
     container_name: trino
+    user: "0:0"
     ports:
       - "8081:8080"
     volumes:
@@ -64,6 +66,56 @@ services:
       - trino
     networks:
       - iceberg-net
+
+  # Apache Spark with Iceberg support for branching
+  spark:
+    image: apache/spark:3.5.0
+    container_name: spark-iceberg
+    user: "0:0"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=0.0.0.0
+    ports:
+      - "8082:8080"  # Spark UI (different from Trino)
+      - "7077:7077"  # Spark Master
+    volumes:
+      - ./warehouse:/data/warehouse
+      - ./scripts:/scripts
+      - ./hive-site.xml:/opt/spark/conf/hive-site.xml
+      - ./jars:/opt/spark/jars-local
+    networks:
+      - iceberg-net
+    depends_on:
+      - hive-metastore
+    command:
+      - bash
+      - -c
+      - |
+        echo 'Copying Iceberg JAR from local mount...'
+        if [ -f /opt/spark/jars-local/iceberg-spark-runtime-3.5_2.12-1.4.2.jar ]; then
+          cp /opt/spark/jars-local/iceberg-spark-runtime-3.5_2.12-1.4.2.jar /opt/spark/jars/
+          echo 'Iceberg JAR copied successfully'
+        else
+          echo 'WARNING: Iceberg JAR not found in mount!'
+        fi
+        ls -la /opt/spark/jars/iceberg* || echo 'JAR verification failed'
+        echo 'Starting Spark Master...'
+        /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host 0.0.0.0 --port 7077 --webui-port 8080 &
+        echo 'Spark Master started, keeping container alive...'
+        while true; do sleep 30; done
+
+  # Shiny for Python Frontend
+  shiny-app:
+    image: trino-shiny-app:latest
+    container_name: shiny-app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - trino
+    networks:
+      - iceberg-net
+    environment:
+      - PYTHONUNBUFFERED=1
 
 volumes:
   postgres-data:
