@@ -1,5 +1,6 @@
 import sys
 import trino
+import pandas as pd
 from shiny import App, render, ui, reactive
 
 # Add shared module to path  
@@ -49,10 +50,8 @@ app_ui = ui.page_fluid(
         ),
         ui.column(6,
                   ui.h4("📊 Results"),
-                  ui.output_text_verbatim(
-                      "results_display",
-                      placeholder="Results will appear here after query execution..."
-                  )
+                  ui.output_text("results_status"),
+                  ui.output_table("results_table")
         )
     )
 )
@@ -62,7 +61,8 @@ def server(input, output, session):
     
     # Reactive values to store current query and results
     current_query = reactive.Value("")
-    current_results = reactive.Value("")
+    current_results_status = reactive.Value("")
+    current_results_data = reactive.Value(None)
     
     def execute_query(query_sql, description):
         """Execute a query and update both query and results displays"""
@@ -85,25 +85,22 @@ def server(input, output, session):
             cursor.close()
             conn.close()
             
-            # Format results for the right panel
-            result_text = f"✅ Query Executed Successfully!\n\n"
-            result_text += f"📊 Results ({len(results)} rows)\n\n"
+            # Update status
+            status_text = f"✅ Query Executed Successfully! ({len(results)} rows)"
+            current_results_status.set(status_text)
             
-            if columns:
-                result_text += f"Columns: {', '.join(columns)}\n\n"
-            
-            # Show results (limit to first 10 rows for readability)
-            for i, row in enumerate(results[:10]):
-                result_text += f"Row {i+1}: {row}\n"
-            
-            if len(results) > 10:
-                result_text += f"... and {len(results) - 10} more rows\n"
-            
-            current_results.set(result_text)
+            # Create DataFrame for table display
+            if results and columns:
+                df = pd.DataFrame(results, columns=columns)
+                current_results_data.set(df)
+            else:
+                # Empty result
+                current_results_data.set(pd.DataFrame())
             
         except Exception as e:
             error_msg = f"❌ Query Error: {str(e)}"
-            current_results.set(error_msg)
+            current_results_status.set(error_msg)
+            current_results_data.set(pd.DataFrame())
     
     # Handle button clicks for each query
     @reactive.Effect
@@ -127,8 +124,17 @@ def server(input, output, session):
     
     @output
     @render.text
-    def results_display():
-        return current_results.get()
+    def results_status():
+        return current_results_status.get()
+    
+    @output
+    @render.table
+    def results_table():
+        df = current_results_data.get()
+        if df is not None and not df.empty:
+            return df
+        else:
+            return pd.DataFrame({"Message": ["No data to display"]})
 
 
 app = App(app_ui, server)
