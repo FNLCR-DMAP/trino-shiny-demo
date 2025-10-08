@@ -66,11 +66,12 @@ def test_app_methods():
     print("2. Testing Shiny app methods...")
     queries = IcebergDemoQueries()
     
-    # Test methods used in app.py
+    # Test the exact methods used in app.py AVAILABLE_QUERIES
     app_methods = [
+        ("connectivity_test", queries.connectivity_test),
         ("warehouse_info", queries.warehouse_info),
         ("time_travel_overview", queries.get_time_travel_overview),
-        ("customer_data_at_timestamp", lambda: queries.get_customer_data_at_timestamp("2025-10-07 17:24:16.681"))
+        ("compare_main_vs_dev_branches", queries.compare_main_vs_dev_branches)
     ]
     
     for method_name, method_func in app_methods:
