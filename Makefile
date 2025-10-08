@@ -30,15 +30,17 @@ help:
 	@echo "  make logs-trino - Show only Trino logs"
 	@echo ""
 	@echo "🧪 Testing & Demo:"
-	@echo "  make init-data      - Initialize demo schema and sample data"
-	@echo "  make rebuild-demo   - Full rebuild with demo data (like rebuild-demo.sh)"
-	@echo "  make test-query     - Test basic Trino connectivity"
-	@echo "  make test-time-travel - Test Iceberg time travel functionality"
-	@echo "  make test-branching - Test Iceberg branching functionality"
-	@echo "  make test-metadata  - Test Iceberg metadata tables"
-	@echo "  make test-all       - Run all comprehensive Iceberg tests"
-	@echo "  make demo           - Show demo instructions"
-	@echo "  make verify         - Verify setup and connectivity"
+	@echo "  make init-data           - Initialize demo schema and sample data"
+	@echo "  make init-ip-sum-data    - Initialize IP Sum pipeline tables and data"
+	@echo "  make run-ip-sum-pipeline - Run IP Sum transformation pipeline"
+	@echo "  make rebuild-demo        - Full rebuild with demo data (like rebuild-demo.sh)"
+	@echo "  make test-query          - Test basic Trino connectivity"
+	@echo "  make test-time-travel    - Test Iceberg time travel functionality"
+	@echo "  make test-branching      - Test Iceberg branching functionality"
+	@echo "  make test-metadata       - Test Iceberg metadata tables"
+	@echo "  make test-all            - Run all comprehensive Iceberg tests"
+	@echo "  make demo                - Show demo instructions"
+	@echo "  make verify              - Verify setup and connectivity"
 	@echo ""
 	@echo "🌐 Access Points:"
 	@echo "  Shiny Frontend: http://localhost:8000"
@@ -294,5 +296,13 @@ demo:
 	@echo "   SELECT 1 as number, 'Hello Trino!' as message"
 	@echo "   SHOW FUNCTIONS"
 	@echo "   SELECT current_timestamp"
+
+# Initialize IP Sum pipeline data
+init-ip-sum-data:
+	@./src/pipelines/ip_sum/init-ip-sum-data.sh
+
+# Run IP Sum pipeline transformation
+run-ip-sum-pipeline:
+	@./src/pipelines/ip_sum/run-ip-sum-pipeline.sh
 	@echo ""
 	@echo "🔧 Need help? Run: make verify"
