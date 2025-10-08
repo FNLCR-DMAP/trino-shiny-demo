@@ -34,39 +34,44 @@ class IcebergDemoQueries:
         return (
             f"""-- WAREHOUSE OVERVIEW
 -- Show available catalogs, schemas, and tables
-WITH warehouse_summary AS (
+WITH catalog_info AS (
     SELECT 
-        'Catalogs' as resource_type,
+        'Available Catalogs' as resource_type,
         COUNT(*) as count,
-        ARRAY_JOIN(ARRAY_AGG(catalog_name), ', ') as items
+        ARRAY_JOIN(ARRAY_AGG(catalog_name ORDER BY catalog_name), ', ') as items
     FROM system.metadata.catalogs
     WHERE catalog_name NOT IN ('system', 'tpcds', 'tpch', 'jmx', 'memory')
-    
-    UNION ALL
-    
+),
+schema_info AS (
     SELECT 
-        'Schemas in ' || '{self.catalog}' as resource_type,
+        'Schemas in {self.catalog}' as resource_type,
         COUNT(*) as count,
-        ARRAY_JOIN(ARRAY_AGG(schema_name), ', ') as items
+        ARRAY_JOIN(ARRAY_AGG(schema_name ORDER BY schema_name), ', ') as items
     FROM {self.catalog}.information_schema.schemata
     WHERE schema_name != 'information_schema'
-    
-    UNION ALL
-    
+),
+table_details AS (
     SELECT 
-        'Tables in ' || '{self.catalog}.{self.schema}' as resource_type,
+        'Tables in {self.catalog}.' || table_schema as resource_type,
         COUNT(*) as count,
-        ARRAY_JOIN(ARRAY_AGG(table_name), ', ') as items
+        ARRAY_JOIN(ARRAY_AGG(table_name ORDER BY table_name), ', ') as items
     FROM {self.catalog}.information_schema.tables
-    WHERE table_schema = '{self.schema}'
+    WHERE table_schema != 'information_schema'
+    GROUP BY table_schema
 )
-SELECT 
-    resource_type,
-    count,
-    items as available_items
-FROM warehouse_summary
-ORDER BY resource_type""",
-            "Overview of available catalogs, schemas, and tables in the warehouse"
+SELECT resource_type, count, items as available_items FROM catalog_info
+UNION ALL
+SELECT resource_type, count, items as available_items FROM schema_info  
+UNION ALL
+SELECT resource_type, count, items as available_items FROM table_details
+ORDER BY 
+    CASE 
+        WHEN resource_type LIKE 'Available Catalogs%' THEN 1
+        WHEN resource_type LIKE 'Schemas in%' THEN 2
+        ELSE 3
+    END,
+    resource_type""",
+            "Complete overview of catalogs, schemas, and all tables in warehouse"
         )
     
     def get_branches_and_refs(self):
