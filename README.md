@@ -1,38 +1,169 @@
-# Iceberg + Hive + Trino + Spark Cross-Engine Demo Stack with Shiny Frontend
+# Modern Data Lakehouse Stack: Iceberg + Hive + Trino + Spark + Shiny
 
-This project demonstrates a production-ready setup for **cross-engine Apache Iceberg** with Hive Metastore, Trino query engine, and Apache Spark using Docker Compose, plus a **Shiny for Python** web interface for end users. Features advanced Iceberg capabilities including **cross-engine branching** where Spark creates branches and Trino queries them.
+This project demonstrates a **production-ready modern data lakehouse architecture** featuring cross-engine Apache Iceberg with multiple query and processing engines. Built with Docker Compose for easy deployment and featuring a **Shiny for Python** web interface for end users.
 
-## 🏗️ Architecture
+## 🏗️ Software Stack & Architecture
 
-- **Trino (435)**: Query engine for interactive analytics and cross-engine querying
-- **Apache Spark (3.5.0)**: Processing engine for branch creation and data manipulation
-- **Apache Hive (4.0.0)**: Metastore for shared metadata management across engines
-- **PostgreSQL (15.4)**: Backend database for Hive Metastore
-- **Apache Iceberg (1.4.2)**: Table format with ACID transactions and cross-engine compatibility
-- **Shiny for Python**: Web frontend for querying data
-- **Local File Storage**: Parquet files stored in `./warehouse` directory with persistence
+### 📊 **Query & Processing Engines**
+- **🔍 Trino (435)** - High-performance distributed SQL query engine
+  - *Purpose*: Interactive analytics, ad-hoc queries, cross-engine data access
+  - *Use Case*: Business intelligence, data exploration, real-time analytics
+  
+- **⚡ Apache Spark (3.5.0)** - Unified analytics engine for large-scale data processing
+  - *Purpose*: ETL processing, machine learning, batch/stream processing, Iceberg branch management
+  - *Use Case*: Data transformations, feature engineering, model training, data pipeline orchestration
 
-## 🚀 Quick Start
+### 🗄️ **Data Storage & Metadata**
+- **🧊 Apache Iceberg (1.4.2)** - Modern table format with ACID transactions
+  - *Purpose*: Schema evolution, time travel, partition management, cross-engine compatibility
+  - *Use Case*: Data versioning, snapshot isolation, efficient data updates/deletes
+  
+- **🏛️ Apache Hive Metastore (4.0.0)** - Centralized metadata repository
+  - *Purpose*: Shared schema registry, table definitions, partition information across engines
+  - *Use Case*: Cross-engine table discovery, metadata consistency, governance
+  
+- **🐘 PostgreSQL (15.4)** - Relational database backend
+  - *Purpose*: Persistent storage for Hive Metastore metadata
+  - *Use Case*: ACID metadata operations, concurrent access, backup/recovery
 
-### 🎯 New Makefile-Based Commands
+### 🌐 **User Interface & Storage**
+- **✨ Shiny for Python** - Interactive web application framework
+  - *Purpose*: User-friendly data exploration interface, query execution, visualization
+  - *Use Case*: Self-service analytics, business user data access, dashboard creation
+  
+- **📁 Local File Storage** - Parquet format data warehouse
+  - *Purpose*: Persistent data storage with columnar format optimization
+  - *Use Case*: Analytics workloads, compression efficiency, schema evolution support
+
+## 🚀 Building the Stack
+
+### 📋 **Prerequisites**
 ```bash
-# Show all available commands
-make help
+# Required software
+- Docker & Docker Compose
+- Make (for simplified commands)
+- 8GB+ RAM recommended
+- 10GB+ disk space for warehouse data
+```
 
-# Start the full stack with Shiny frontend  
+### 🛠️ **Quick Build & Start**
+```bash
+# Clone or navigate to the project directory
+cd /path/to/trino-iceberg-stack
+
+# Build and start the entire stack
 make start
 
-# Verify everything is working
-make verify
+# This command:
+# 1. Pulls all Docker images (Trino, Spark, Hive, PostgreSQL, Shiny)
+# 2. Creates shared networks and volumes
+# 3. Initializes PostgreSQL with Hive schema
+# 4. Starts Hive Metastore service
+# 5. Launches Trino with Iceberg connector
+# 6. Starts Spark cluster (master + worker)
+# 7. Deploys Shiny web application
+# 8. Creates persistent warehouse directory
+```
 
-# Show demo instructions
+### 🔧 **Step-by-Step Manual Build**
+```bash
+# 1. Start infrastructure services (PostgreSQL + Hive)
+docker-compose up -d postgres hive-metastore
+
+# 2. Wait for Hive Metastore initialization
+sleep 30
+
+# 3. Start query engines
+docker-compose up -d trino spark-master spark-worker
+
+# 4. Launch web frontend
+docker-compose up -d shiny-app
+
+# 5. Verify all services
+make status
+```
+
+### 🏗️ **Architecture Flow**
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Shiny App     │    │      Trino       │    │     Spark       │
+│  (Port 8000)    │────│   (Port 8081)    │────│  (Port 8082)    │
+│  Web Interface  │    │  Query Engine    │    │ Processing Engine│
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────────┐
+                    │   Hive Metastore    │
+                    │    (Port 9083)      │
+                    │  Metadata Service   │
+                    └─────────────────────┘
+                                 │
+                    ┌─────────────────────┐
+                    │    PostgreSQL       │
+                    │    (Port 5432)      │
+                    │  Metadata Storage   │
+                    └─────────────────────┘
+                                 │
+                    ┌─────────────────────┐
+                    │   Iceberg Tables    │
+                    │     ./warehouse     │
+                    │   Parquet Files     │
+                    └─────────────────────┘
+```
+
+## 🚀 Quick Start Guide
+
+### 🎯 **Makefile Commands (Recommended)**
+```bash
+# Show all available commands with descriptions
+make help
+
+# 🏗️ Build & Start the Complete Stack
+make start
+# - Pulls Docker images for all services
+# - Creates networks and volumes
+# - Initializes PostgreSQL + Hive Metastore
+# - Starts Trino, Spark, and Shiny services
+# - Sets up Iceberg warehouse directory
+
+# ✅ Verify Stack Health
+make verify
+# - Tests database connectivity
+# - Validates service endpoints
+# - Checks Iceberg table access
+# - Confirms cross-engine functionality
+
+# 🎬 Initialize Demo Data
+make init-data
+# - Creates sample Iceberg tables
+# - Inserts customer and product data
+# - Demonstrates schema evolution
+# - Sets up cross-engine branching examples
+
+# 📚 Show Interactive Demo Guide
 make demo
 ```
 
-**Access Points:**
-- 🌐 **Shiny Frontend**: http://localhost:8000 (User-friendly web interface)
-- 📊 **Trino Web UI**: http://localhost:8081 (Admin interface)
-- ⚡ **Spark UI**: http://localhost:8082 (Spark Master Web UI)
+### 🌐 **Access Points**
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **🌟 Shiny Frontend** | http://localhost:8000 | **Main user interface** - Query execution, data visualization |
+| **📊 Trino Web UI** | http://localhost:8081 | Query monitoring, cluster status, performance metrics |
+| **⚡ Spark Master UI** | http://localhost:8082 | Spark cluster management, job monitoring |
+| **🐘 PostgreSQL** | localhost:5432 | Direct database access (user: `hive`, password: `hive`) |
+
+### 🔍 **Service Health Check**
+```bash
+# Quick status overview
+make status
+
+# Individual service logs
+make logs-trino    # Trino query engine logs
+make logs-spark    # Spark processing logs  
+make logs-shiny    # Shiny web app logs
+make logs-hive     # Hive Metastore logs
+```
 
 ### ⚡ Common Commands
 ```bash
@@ -212,29 +343,138 @@ CREATE TABLE sales (
 );
 ```
 
-## 🔧 Production Considerations
+## 🏭 Production Deployment Guide
 
-This setup uses production-ready container images:
+### 📦 **Container Images & Versions**
+| Component | Version | Image | Purpose |
+|-----------|---------|-------|---------|
+| **Trino** | 435 | `trinodb/trino:435` | Latest stable with Iceberg 1.4.2 support |
+| **Spark** | 3.5.0 | `apache/spark:3.5.0` | Current stable with Scala 2.12 |
+| **Hive Metastore** | 4.0.0 | `apache/hive:4.0.0` | Latest stable metastore release |
+| **PostgreSQL** | 15.4 | `postgres:15.4` | LTS version for metadata persistence |
+| **Python/Shiny** | 3.11 | `python:3.11-slim` | Web interface runtime |
 
-- **Trino 435**: Latest stable release with Iceberg connector
-- **Apache Spark 3.5.0**: Current stable with Iceberg 1.4.2 runtime
-- **Apache Hive 4.0.0**: Current stable metastore release
-- **PostgreSQL 15.4**: LTS version for metadata storage
+### 🔧 **Cross-Engine Architecture Features**
+```yaml
+# Key architectural decisions for production readiness:
 
-### Cross-Engine Setup Features
-- **Persistent JAR Management**: Iceberg runtime JARs survive container rebuilds
-- **Shared Metadata**: Single Hive Metastore enables cross-engine table access
-- **Automatic JAR Mounting**: Spark containers auto-configure Iceberg runtime
-- **Warehouse Alignment**: Consistent `/data/warehouse` path across engines
+Persistent JAR Management:
+  - Iceberg runtime JARs survive container rebuilds
+  - Automatic version alignment across engines
+  - Shared JAR volume: ./jars:/opt/shared/jars
 
-### For Production Deployment
-1. Use external PostgreSQL with proper backup/recovery
-2. Configure proper authentication and authorization  
-3. Set up monitoring and logging for both Trino and Spark
-4. Use distributed storage (S3, HDFS, etc.) instead of local files
-5. Scale Trino workers and Spark executors based on workload
-6. Implement proper network security between engine components
-7. Use external Iceberg JAR management (Maven repositories)
+Shared Metadata Layer:
+  - Single Hive Metastore for all engines
+  - ACID metadata operations via PostgreSQL
+  - Cross-engine table discovery and governance
+
+Warehouse Consistency:
+  - Unified data path: ./warehouse:/data/warehouse
+  - Parquet format optimization
+  - Iceberg manifest management
+
+Network Architecture:
+  - Internal Docker network for service communication
+  - External port exposure for user interfaces
+  - Service discovery via container names
+```
+
+### 🚀 **Scaling for Production**
+
+#### **Infrastructure Scaling**
+```bash
+# Scale Spark workers
+docker-compose up -d --scale spark-worker=3
+
+# Add Trino worker nodes (requires cluster configuration)
+# Update trino/etc/config.properties:
+# coordinator=false
+# discovery.uri=http://trino-coordinator:8080
+
+# Scale Shiny app instances (with load balancer)
+docker-compose up -d --scale shiny-app=2
+```
+
+#### **Performance Optimization**
+```yaml
+# trino/etc/config.properties
+query.max-memory=50GB
+query.max-memory-per-node=8GB
+query.max-total-memory-per-node=10GB
+
+# Spark configuration (spark-defaults.conf)
+spark.sql.adaptive.enabled=true
+spark.sql.adaptive.coalescePartitions.enabled=true
+spark.serializer=org.apache.spark.serializer.KryoSerializer
+```
+
+### 🔐 **Production Security Checklist**
+- [ ] **Authentication**: Configure LDAP/OAuth for Trino and Spark
+- [ ] **Authorization**: Implement role-based access control (RBAC)
+- [ ] **Network Security**: Use TLS/SSL for all inter-service communication
+- [ ] **Data Encryption**: Enable encryption at rest and in transit
+- [ ] **Monitoring**: Deploy Prometheus + Grafana for observability
+- [ ] **Backup**: Automated PostgreSQL backups and Iceberg snapshots
+- [ ] **Secrets Management**: Use Docker secrets or external vault
+
+### ☁️ **Cloud Deployment Options**
+
+#### **AWS Deployment**
+```bash
+# Replace local storage with S3
+# Update iceberg.properties:
+iceberg.catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO
+s3.endpoint=https://s3.amazonaws.com
+s3.path-style-access=false
+
+# Use RDS for PostgreSQL
+# Use ECS/EKS for container orchestration
+# Use ALB for load balancing
+```
+
+#### **Kubernetes Deployment**
+```yaml
+# Example helm values for production K8s
+trino:
+  replicas: 3
+  resources:
+    requests:
+      memory: "8Gi"
+      cpu: "2"
+    limits:
+      memory: "16Gi" 
+      cpu: "4"
+
+spark:
+  master:
+    replicas: 1
+  worker:
+    replicas: 5
+    resources:
+      requests:
+        memory: "4Gi" 
+        cpu: "2"
+```
+
+### 📊 **Monitoring & Observability**
+```bash
+# Add monitoring stack to docker-compose.yml
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+  
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+# Trino metrics endpoint: http://localhost:8081/v1/info
+# Spark metrics endpoint: http://localhost:8082/metrics/json
+```
 
 ## 🛑 Cleanup
 
