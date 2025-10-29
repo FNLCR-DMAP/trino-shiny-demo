@@ -26,11 +26,11 @@ CREATE TABLE IF NOT EXISTS iceberg.demo.customers (
 
 if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
     echo "   ✓ Table created successfully"
-    
+
     # Step 3: Check if data already exists, insert if needed
     echo "3. Checking existing data..."
     EXISTING_COUNT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.demo.customers" 2>/dev/null | tail -1 | tr -d '"')
-    
+
     if [[ "$EXISTING_COUNT" == "0" ]]; then
         echo "   → Inserting initial customer data..."
         INSERT_RESULT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "
@@ -42,10 +42,10 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
     else
         echo "   ✓ Data already exists ($EXISTING_COUNT rows)"
     fi
-    
+
     # Always proceed with advanced features setup
     if [[ "$EXISTING_COUNT" -lt "5" ]]; then
-        
+
     # Step 4: Add more customers for comprehensive time travel demonstration
     echo "4. Adding additional customers for time travel demo..."
     docker exec trino-cli trino --server trino:8080 --user admin --execute "
@@ -56,38 +56,38 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
     else
         echo "4. Skipping data insertion - sufficient data already exists"
     fi
-        
+
     # Step 5: Check if schema evolution has been applied
     echo "5. Checking Iceberg Schema Evolution..."
     COLUMN_CHECK=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "DESCRIBE iceberg.demo.customers" 2>/dev/null | grep customer_tier || echo "NOT_FOUND")
-    
+
     if [[ "$COLUMN_CHECK" == "NOT_FOUND" ]]; then
         echo "   → Adding customer_tier column for business segmentation..."
         docker exec trino-cli trino --server trino:8080 --user admin --execute "
-        ALTER TABLE iceberg.demo.customers 
+        ALTER TABLE iceberg.demo.customers
         ADD COLUMN customer_tier VARCHAR" 2>/dev/null
         echo "   ✓ Schema evolved - added customer_tier column"
-        
+
         # Step 6: Update records with business logic for better time travel demo
         echo "6. Updating customers with tier classification..."
         docker exec trino-cli trino --server trino:8080 --user admin --execute "
-        UPDATE iceberg.demo.customers 
-        SET customer_tier = 'platinum' 
+        UPDATE iceberg.demo.customers
+        SET customer_tier = 'platinum'
         WHERE total_spent > 500" 2>/dev/null
         docker exec trino-cli trino --server trino:8080 --user admin --execute "
-        UPDATE iceberg.demo.customers 
-        SET customer_tier = 'gold' 
+        UPDATE iceberg.demo.customers
+        SET customer_tier = 'gold'
         WHERE total_spent BETWEEN 200 AND 500" 2>/dev/null
         docker exec trino-cli trino --server trino:8080 --user admin --execute "
-        UPDATE iceberg.demo.customers 
-        SET customer_tier = 'silver' 
+        UPDATE iceberg.demo.customers
+        SET customer_tier = 'silver'
         WHERE customer_tier IS NULL" 2>/dev/null
         echo "   ✓ Updated customer tiers based on spending"
-        
+
         # Step 7: Add promotional update for time travel demonstration
         echo "7. Adding promotional discount for high-value customers..."
         docker exec trino-cli trino --server trino:8080 --user admin --execute "
-        UPDATE iceberg.demo.customers 
+        UPDATE iceberg.demo.customers
         SET total_orders = total_orders + 1,
             total_spent = total_spent * 1.1
         WHERE customer_tier IN ('platinum', 'gold')" 2>/dev/null
@@ -95,15 +95,15 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
     else
         echo "   ✓ Schema evolution already applied"
     fi
-        
+
     # Step 8: Comprehensive Time Travel and Branching Demo (following rebuild-demo.sh Step 8)
     echo "8. Demonstrating Iceberg Time Travel..."
-    
+
     # Step 8a: Get snapshot information for time travel
     echo "   → Getting current snapshot info for time travel demo..."
     SNAPSHOT_DATA=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT snapshot_id, committed_at, operation FROM iceberg.demo.\"customers\$snapshots\" ORDER BY committed_at DESC LIMIT 1" 2>/dev/null)
     echo "     • Latest snapshot: $SNAPSHOT_DATA"
-    
+
     # Step 8b: Demonstrate time travel query by snapshot ID
     echo "   → Time travel query (showing data evolution across snapshots)..."
     FIRST_SNAPSHOT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT snapshot_id FROM iceberg.demo.\"customers\$snapshots\" ORDER BY committed_at LIMIT 1" 2>/dev/null | tail -n 1 | tr -d '"')
@@ -111,7 +111,7 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         echo "     • Querying earliest snapshot ID: $FIRST_SNAPSHOT"
         docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as historical_count, COALESCE(SUM(total_spent), 0) as historical_revenue FROM iceberg.demo.customers FOR VERSION AS OF $FIRST_SNAPSHOT" 2>/dev/null
     fi
-    
+
     # Step 8c: Demonstrate time travel query by timestamp
     echo "   → Time travel query by timestamp..."
     FIRST_TIMESTAMP=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT committed_at FROM iceberg.demo.\"customers\$snapshots\" ORDER BY committed_at LIMIT 1" 2>/dev/null | tail -n 1 | tr -d '"')
@@ -119,7 +119,7 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         echo "     • Querying timestamp: $FIRST_TIMESTAMP"
         docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as timestamp_count FROM iceberg.demo.customers FOR TIMESTAMP AS OF TIMESTAMP '$FIRST_TIMESTAMP'" 2>/dev/null
     fi
-    
+
     # Step 8d: Show comparison of current vs historical data
     echo "   → Comparing current vs historical revenue evolution:"
     echo "     • Current total revenue:"
@@ -128,15 +128,15 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         echo "     • Historical total revenue (first snapshot):"
         docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COALESCE(ROUND(SUM(total_spent), 2), 0) as historical_total FROM iceberg.demo.customers FOR VERSION AS OF $FIRST_SNAPSHOT" 2>/dev/null
     fi
-    
+
     # Step 8e: Demonstrate Cross-Engine Iceberg Branching (Spark creates, Trino queries)
     echo "   → Demonstrating Cross-Engine Iceberg Branching..."
-    
+
     # Use the proven working approach: create table with Trino, then branch with Spark
     echo "   → Creating branching demo table with Trino..."
     docker exec trino-cli trino --server trino:8080 --user admin --execute "CREATE SCHEMA IF NOT EXISTS iceberg.branching_demo" 2>/dev/null
-    
-    
+
+
     TRINO_TABLE_RESULT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "
     CREATE TABLE IF NOT EXISTS iceberg.branching_demo.products (
         id BIGINT,
@@ -144,10 +144,10 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         category VARCHAR(50),
         price DECIMAL(10,2)
     ) WITH (format = 'PARQUET')" 2>&1)
-    
+
     if [[ $TRINO_TABLE_RESULT == *"CREATE TABLE"* ]]; then
         echo "   ✓ Created products table with Trino"
-        
+
         # Insert sample data with Trino
         docker exec trino-cli trino --server trino:8080 --user admin --execute "
         INSERT INTO iceberg.branching_demo.products VALUES
@@ -155,7 +155,7 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         (2, 'Coffee Mug', 'Kitchen', 12.50),
         (3, 'Desk Chair', 'Furniture', 149.99)" 2>/dev/null
         echo "   ✓ Inserted sample data with Trino"
-        
+
         # Create dev branch using Spark (fix root cause: add explicit warehouse config)
         echo "   → Creating dev branch with Spark..."
         SPARK_BRANCH_RESULT=$(docker exec spark-iceberg /opt/spark/bin/spark-sql \
@@ -166,10 +166,10 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
             --conf spark.sql.catalog.iceberg.uri=thrift://hive-metastore:9083 \
             --conf spark.sql.catalog.iceberg.warehouse=file:///data/warehouse \
             -e "ALTER TABLE iceberg.branching_demo.products CREATE BRANCH dev;" 2>&1)
-        
+
         if [[ $? -eq 0 && $SPARK_BRANCH_RESULT == *"Time taken:"* ]]; then
             echo "   ✓ Created dev branch with Spark!"
-            
+
             # Add data to dev branch using Spark
             echo "   → Adding development data to dev branch with Spark..."
             SPARK_INSERT_RESULT=$(docker exec spark-iceberg /opt/spark/bin/spark-sql \
@@ -180,7 +180,7 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
                 --conf spark.sql.catalog.iceberg.uri=thrift://hive-metastore:9083 \
                 --conf spark.sql.catalog.iceberg.warehouse=file:///data/warehouse \
                 -e "INSERT INTO iceberg.branching_demo.products.branch_dev VALUES (99, 'Dev Product', 'Testing', 1.00);" 2>&1)
-            
+
             if [[ $? -eq 0 && $SPARK_INSERT_RESULT == *"Time taken:"* ]]; then
                 echo "   ✓ Successfully added development data to dev branch with Spark!"
                 # Small delay to ensure transaction is committed
@@ -188,19 +188,19 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
             else
                 echo "   ⚠️  Spark insertion may have failed: $SPARK_INSERT_RESULT"
             fi
-            
+
             echo "   ✅ Cross-Engine Branching Demo Complete!"
             echo "   → Now demonstrating THE ULTIMATE TEST: Trino querying Spark-created branch:"
-            
+
             # THE ULTIMATE DEMO: Trino queries Spark-created branch
             echo "     • Main branch count (Trino query):"
             MAIN_COUNT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.branching_demo.products" 2>/dev/null | tail -1 | tr -d '"')
             echo "       $MAIN_COUNT products"
-            
+
             echo "     • Dev branch count (Trino querying Spark-created branch):"
             DEV_COUNT=$(docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) FROM iceberg.branching_demo.products FOR VERSION AS OF 'dev'" 2>/dev/null | tail -1 | tr -d '"')
             echo "       $DEV_COUNT products"
-            
+
             if [[ "$DEV_COUNT" -gt "$MAIN_COUNT" ]]; then
                 echo "   🎉 SUCCESS: Trino successfully queried Spark-created branch!"
                 echo "   → Cross-engine Iceberg branching is WORKING PERFECTLY!"
@@ -219,18 +219,18 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
     else
         echo "   ❌ Trino table creation failed: $TRINO_TABLE_RESULT"
     fi
-    
+
     # Step 8f: Show Iceberg Metadata Tables for comprehensive demo
     echo "   → Exploring Iceberg Metadata Tables..."
     echo "     • Table snapshots (showing evolution):"
     docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT committed_at, operation, summary FROM iceberg.demo.\"customers\$snapshots\" ORDER BY committed_at DESC LIMIT 5" 2>/dev/null
-    
+
     echo "     • Data files:"
     docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT file_format, record_count, file_size_in_bytes FROM iceberg.demo.\"customers\$files\"" 2>/dev/null
-    
+
     echo "     • Table history:"
     docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT made_current_at, snapshot_id FROM iceberg.demo.\"customers\$history\" ORDER BY made_current_at DESC LIMIT 3" 2>/dev/null
-    
+
     # Step 8g: Final business summary with time travel context
     echo "9. Demo data summary with time travel context:"
         echo "   → Customer count by tier:"
@@ -241,14 +241,15 @@ if [[ $TABLE_RESULT == *"CREATE TABLE"* ]]; then
         docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as snapshot_count FROM iceberg.demo.\"customers\$snapshots\"" 2>/dev/null | head -1 | sed 's/^/      Snapshots: /'
         echo "   → Total customers and revenue:"
         docker exec trino-cli trino --server trino:8080 --user admin --execute "SELECT COUNT(*) as customers, ROUND(SUM(total_spent), 2) as total_revenue FROM iceberg.demo.customers" 2>/dev/null
-        
+
         echo ""
     echo ""
     echo "✅ Demo data initialization complete!"
     echo "🌐 Access Shiny Frontend: http://localhost:8000"
     echo "📊 Access Trino Web UI: http://localhost:8081"
-        
+
 else
     echo "   ✗ Table creation failed"
+    echo ${TABLE_RESULT}
     exit 1
 fi
