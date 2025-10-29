@@ -45,6 +45,11 @@ help:
 	@echo "  make demo                - Show demo instructions"
 	@echo "  make verify              - Verify setup and connectivity"
 	@echo ""
+	@echo "📥 Data Registration:"
+	@echo "  make register-data DATA_FILE=<file> SCHEMA=<schema> TABLE=<table>"
+	@echo "                       - Register any data file (CSV, Parquet, JSON, etc.) to Iceberg"
+	@echo "  make register-lims-ngs   - Quick shortcut to register LIMS NGS data"
+	@echo ""
 	@echo "🌐 Access Points:"
 	@echo "  Shiny Frontend: http://localhost:8000"
 	@echo "  Trino Web UI:   http://localhost:8081"
@@ -149,7 +154,7 @@ logs-shiny:
 	@echo "📱 Shiny App Logs:"
 	docker-compose logs --tail=20 shiny-app
 
-# Show Trino logs only  
+# Show Trino logs only
 logs-trino:
 	@echo "🔍 Trino Logs:"
 	docker-compose logs --tail=20 trino
@@ -275,7 +280,7 @@ test-all:
 	@echo ""
 	$(MAKE) test-time-travel
 	@echo ""
-	$(MAKE) test-branching  
+	$(MAKE) test-branching
 	@echo ""
 	$(MAKE) test-metadata
 	@echo ""
@@ -291,7 +296,7 @@ demo:
 	@echo ""
 	@echo "2. 🔍 Try these workflows:"
 	@echo "   • Show Catalogs → Execute"
-	@echo "   • Show Schemas → Execute" 
+	@echo "   • Show Schemas → Execute"
 	@echo "   • Show Tables → Execute"
 	@echo "   • Sample Data → Execute"
 	@echo ""
@@ -316,3 +321,38 @@ deploy:
 	docker-compose run --rm -T --no-deps \
 	  deploy-shiny \
 	  bash -c "echo 'Commit $(COMMIT_HASH)'; ls -1 /root/.rsconnect-python || echo 'No rsconnect config'; rsconnect list || echo 'No servers'; rsconnect deploy shiny -n appshare-dev -t 'Trino Shiny Demo ($(COMMIT_HASH))' --verbose ."
+
+
+# Register data files to Iceberg (CSV, Parquet, JSON, etc.)
+# Usage: make register-data DATA_FILE=path/to/file.csv SCHEMA=demo TABLE=mytable [FORMAT=csv] [SCHEMA_FILE=schema.py]
+register-data:
+	@if [ -z "$(DATA_FILE)" ] || [ -z "$(TABLE)" ]; then \
+		echo "❌ Error: Missing required arguments"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make register-data DATA_FILE=<file> SCHEMA=<schema> TABLE=<table> [FORMAT=<format>] [SCHEMA_FILE=<schema.py>]"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  # Register CSV file (auto-detected)"; \
+		echo "  make register-data DATA_FILE=data/patients.csv SCHEMA=demo TABLE=patients"; \
+		echo ""; \
+		echo "  # Register Parquet file"; \
+		echo "  make register-data DATA_FILE=data/samples.parquet SCHEMA=clinical TABLE=samples FORMAT=parquet"; \
+		echo ""; \
+		echo "  # Register LIMS NGS data with custom schema"; \
+		echo "  make register-data DATA_FILE=data/notional_combined_lims_ngs.csv SCHEMA=demo TABLE=combined_lims_ngs SCHEMA_FILE=data/combined_lims_ngs_schema.py"; \
+		exit 1; \
+	fi
+	@if [ -n "$(FORMAT)" ] && [ -n "$(SCHEMA_FILE)" ]; then \
+		./src/data-registration/register-data-to-iceberg.sh "$(DATA_FILE)" "$(SCHEMA)" "$(TABLE)" "$(FORMAT)" "$(SCHEMA_FILE)"; \
+	elif [ -n "$(SCHEMA_FILE)" ]; then \
+		./src/data-registration/register-data-to-iceberg.sh "$(DATA_FILE)" "$(SCHEMA)" "$(TABLE)" "" "$(SCHEMA_FILE)"; \
+	elif [ -n "$(FORMAT)" ]; then \
+		./src/data-registration/register-data-to-iceberg.sh "$(DATA_FILE)" "$(SCHEMA)" "$(TABLE)" "$(FORMAT)"; \
+	else \
+		./src/data-registration/register-data-to-iceberg.sh "$(DATA_FILE)" "$(SCHEMA)" "$(TABLE)"; \
+	fi
+
+# Quick shortcut for LIMS NGS data
+register-lims-ngs:
+	@$(MAKE) register-data DATA_FILE=data/notional_combined_lims_ngs.csv SCHEMA=demo TABLE=combined_lims_ngs SCHEMA_FILE=data/combined_lims_ngs_schema.py
