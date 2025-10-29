@@ -52,6 +52,10 @@ services:
       - ./trino/etc:/etc/trino
       - ./trino/catalog:/etc/trino/catalog
       - ./warehouse:/data/warehouse
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       - hive-metastore
     networks:
