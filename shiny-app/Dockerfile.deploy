@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+WORKDIR /deploy
+
+# System dependencies
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install rsconnect-python
+RUN pip install rsconnect-python
+
+# Copy app code
+COPY app.py .
+COPY shared/ ./shared/
+
+# No ENTRYPOINT so we can run arbitrary diagnostic and rsconnect commands via docker-compose run
+CMD ["bash"]

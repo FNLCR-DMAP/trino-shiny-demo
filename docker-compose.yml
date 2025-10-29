@@ -127,6 +127,23 @@ services:
       - ./shiny-app/app.py:/app/app.py
       - ./shiny-app/shared:/app/shared
 
+  # Deployment container for Posit Connect
+  deploy-shiny:
+    build:
+      context: ./shiny-app
+      dockerfile: Dockerfile.deploy
+    image: trino-shiny-app-deploy:latest
+    container_name: deploy-shiny
+    networks:
+      - iceberg-net
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RSCONNECT_HOME=/root/.rsconnect-python
+    volumes:
+      - ./shiny-app:/deploy
+      - "${HOME}/Library/Application Support/rsconnect-python:/root/.rsconnect-python:ro"
+    # The actual deploy command will be passed by make
+
 volumes:
   postgres-data:
 

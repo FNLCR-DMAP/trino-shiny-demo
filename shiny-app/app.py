@@ -1,11 +1,19 @@
 import sys
+import os
 import trino
 import pandas as pd
 from shiny import App, render, ui, reactive
 
-# Add shared module to path  
-sys.path.append('/app/shared')
-from demo_queries import IcebergDemoQueries
+# Robust import of demo_queries: attempt package import first, then fallback to relative path.
+try:
+    from shared.demo_queries import IcebergDemoQueries  # when shared is a package
+except ModuleNotFoundError:
+    # Fallback: add directory containing app.py and 'shared' subdir to path
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    shared_dir = os.path.join(base_dir, 'shared')
+    if shared_dir not in sys.path:
+        sys.path.insert(0, shared_dir)
+    from demo_queries import IcebergDemoQueries
 
 # Define available queries - keeping it simple with just the essentials
 AVAILABLE_QUERIES = [
@@ -93,19 +101,22 @@ app_ui = ui.page_fluid(
 
 
 def server(input, output, session):
-    
+    # Get Trino host and port from environment variables, with defaults
+    TRINO_HOST = os.environ.get("TRINO_HOST", "trino")
+    TRINO_PORT = int(os.environ.get("TRINO_PORT", "8080"))
+
     # Reactive values to store current query and results
     current_query = reactive.Value("")
     current_results_status = reactive.Value("")
     current_results_data = reactive.Value(None)
-    
+
     # Load time points when app starts
     @reactive.Effect
     def load_timepoints():
         try:
             conn = trino.dbapi.connect(
-                host="trino",
-                port=8080,
+                host=TRINO_HOST,
+                port=TRINO_PORT,
                 user="admin",
                 catalog="iceberg"
             )
@@ -121,30 +132,30 @@ def server(input, output, session):
             results = cursor.fetchall()
             cursor.close()
             conn.close()
-            
+
             # Create choices for the selector
             choices = {}
             for result in results:
                 timestamp, operation, snap_num = result
                 label = f"#{int(snap_num)} - {timestamp} ({operation})"
                 choices[str(timestamp)] = label
-            
+
             # Update the selector choices
             ui.update_select("timepoint_selector", choices=choices)
-            
+
         except Exception as e:
             print(f"Error loading timepoints: {e}")
-    
+
     def execute_query(query_sql, description):
         """Execute a query and update both query and results displays"""
         # Update query display
         query_text = f"📋 Description: {description}\n\n{query_sql}"
         current_query.set(query_text)
-        
+
         try:
             conn = trino.dbapi.connect(
-                host="trino",
-                port=8080,
+                host=TRINO_HOST,
+                port=TRINO_PORT,
                 user="admin",
                 catalog="iceberg"
             )
@@ -155,11 +166,11 @@ def server(input, output, session):
                        if cursor.description else [])
             cursor.close()
             conn.close()
-            
+
             # Update status
             status_text = f"✅ Query Executed Successfully! ({len(results)} rows)"
             current_results_status.set(status_text)
-            
+
             # Create DataFrame for table display
             if results and columns:
                 df = pd.DataFrame(results, columns=columns)
@@ -167,7 +178,7 @@ def server(input, output, session):
             else:
                 # Empty result
                 current_results_data.set(pd.DataFrame())
-            
+
         except Exception as e:
             error_msg = f"❌ Query Error: {str(e)}"
             current_results_status.set(error_msg)

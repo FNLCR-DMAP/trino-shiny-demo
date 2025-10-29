@@ -3,6 +3,9 @@
 
 .PHONY: help build start stop restart clean logs status demo verify shiny-dev shiny-rebuild
 
+# Current git commit short hash for deployment tagging
+COMMIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+
 # Default target
 help:
 	@echo "🚀 Trino + Iceberg + Shiny Frontend Stack"
@@ -306,3 +309,10 @@ run-ip-sum-pipeline:
 	@./src/pipelines/ip_sum/run-ip-sum-pipeline.sh
 	@echo ""
 	@echo "🔧 Need help? Run: make verify"
+
+# Deploy Shiny app to Posit Connect
+deploy:
+	@echo "🚀 Deploying Shiny app to Posit Connect... (commit: $(COMMIT_HASH))"
+	docker-compose run --rm -T --no-deps \
+	  deploy-shiny \
+	  bash -c "echo 'Commit $(COMMIT_HASH)'; ls -1 /root/.rsconnect-python || echo 'No rsconnect config'; rsconnect list || echo 'No servers'; rsconnect deploy shiny -n appshare-dev -t 'Trino Shiny Demo ($(COMMIT_HASH))' --verbose ."
