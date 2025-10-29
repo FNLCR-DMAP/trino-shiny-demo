@@ -106,6 +106,9 @@ services:
 
   # Shiny for Python Frontend
   shiny-app:
+    build:
+      context: ./shiny-app
+      dockerfile: Dockerfile
     image: trino-shiny-app:latest
     container_name: shiny-app
     ports:
