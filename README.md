@@ -186,8 +186,8 @@ The project includes an advanced **DataPipeline** framework (`src/dmap_data_sdk/
 ```
 
 **🎯 Key Architecture Benefits:**
-- **📝 3-Line Business Logic**: `pipeline = DataPipeline.from_config()` → `df = pipeline.read_table()` → `pipeline.write_table()`  
-- **⚙️ Configuration-Driven**: Platform selection, Spark config, lineage via YAML files
+- **📝 Simplified API**: From 45+ lines of manual setup → 3 lines of business logic
+- **⚙️ Configuration-Driven**: Platform selection, Spark config, lineage via YAML files  
 - **🔄 Cross-Engine Support**: Same API works with Iceberg, Delta Lake, Snowflake
 - **🌲 Branch-Aware**: Native git-like branching with Iceberg, graceful fallbacks elsewhere
 - **📊 Automatic Lineage**: Input/output tracking, snapshot genealogy, execution metadata
@@ -314,76 +314,55 @@ The included Shiny for Python web application provides an intuitive interface fo
 
 The new configuration-driven pipeline dramatically simplifies data engineering workflows:
 
-**Traditional Approach (150+ lines):**
+**Original Iceberg Pipeline (45+ lines of boilerplate):**
 ```bash
-# Run original boilerplate-heavy pipeline
+# Run manual Spark session + Iceberg configuration pipeline  
 make run-ip-sum-pipeline
 ```
 
-**Enhanced Approach (3 lines of business logic):**
+**Enhanced Configuration-Driven Pipeline (3 lines of business logic):**
 ```bash
-# Run configuration-driven pipeline with automatic lineage
+# Run configuration-driven pipeline with automatic lineage + context detection
 make run-enhanced-pipeline
 ```
 
 **Code Comparison:**
 ```python
-# ❌ Old Way: Manual boilerplate (150+ lines of setup)
-spark = SparkSession.builder \
+# ❌ Before: Manual Spark + Iceberg setup
+spark = SparkSession.builder.appName("ip_sum_iceberg") \
     .config("spark.sql.extensions", "org.apache.iceberg...") \
     .config("spark.sql.catalog.iceberg", "org.apache.iceberg...") \
-    # ... 20+ more config lines
+    # + 5 more Iceberg configs
     .getOrCreate()
 
-# Manual context detection
-if "AIRFLOW_CTX_DAG_ID" in os.environ:
-    # ... 30+ lines of Airflow context parsing
-else:
-    # ... 20+ lines of manual context creation
+df = spark.table(input_table)
+result = ip_sum(df)
+result.writeTo(output_table).append()
+spark.stop()
 
-# Manual lineage setup  
-try:
-    lineage_sink = IcebergLineageSink(spark, "audit.etl_lineage")
-    # ... 40+ lines of lineage handling
-except:
-    # ... error handling
-
-# Finally, business logic (buried in boilerplate)
-df = spark.read.format("iceberg").load("iceberg.data_pipeline.full_name_input")
-result = df.select(...)  # actual transformation
-df.write.format("iceberg").save("iceberg.data_pipeline.ip_sum_output")
-
-# ✅ New Way: Configuration-driven (3 lines)
-pipeline = DataPipeline.from_config("ip_sum")  # Auto-loads pipeline_config.yaml
-df = pipeline.read_table("full_name_input")     # Auto-lineage tracking
-pipeline.write_table(transformed_df, "ip_sum_output")  # Auto-context stamping
+# ✅ After: Configuration-driven
+pipeline = DataPipeline.from_config("ip_sum")
+df = pipeline.read_table(input_table)
+pipeline.write_table(ip_sum(df), output_table)
 ```
 
-**Configuration File (`pipeline_config.yaml`):**
+**Configuration (`pipeline_config.yaml`):**
 ```yaml
 platform:
-  type: "iceberg" 
-  spark_config:
-    spark.sql.adaptive.enabled: "true"
-    spark.sql.adaptive.coalescePartitions.enabled: "true"
+  type: "iceberg"  # or "delta", "snowflake"
 lineage:
   enabled: true
-  table: "audit.etl_lineage"
 ```
 
-**Cross-Platform Support:**
+**Cross-Platform & Branch Support:**
 ```python
-# Same API works across platforms
-iceberg_pipeline = DataPipeline.from_config("transform", config_path="config/iceberg.yaml")
-delta_pipeline = DataPipeline.from_config("transform", config_path="config/delta.yaml") 
-snowflake_pipeline = DataPipeline.from_config("transform", config_path="config/snowflake.yaml")
+# Same API, different platforms
+DataPipeline.from_config("transform", config_path="iceberg.yaml")
+DataPipeline.from_config("transform", config_path="delta.yaml")
 
-# Branch-aware operations (Iceberg)
-pipeline.set_input_ref(Ref(branch="feature_branch"))
+# Branch operations (Iceberg)
+pipeline.set_input_ref(Ref(branch="feature"))
 pipeline.set_target_ref(Ref(branch="main"))
-
-# Time travel operations (all platforms)
-historical_data = pipeline.platform.read_table("sales", Ref(as_of_ts_millis=1699027200000))
 ```
 
 ## 🔍 Manual Exploration
