@@ -1,0 +1,56 @@
+# Data Pipeline Configuration
+# ===========================
+# This file configures the data platform and pipeline behavior.
+# Place this file in your project root or specify path via DATA_PIPELINE_CONFIG env var.
+
+platform:
+  # Platform type: "iceberg", "delta", "snowflake" 
+  type: "iceberg"
+  
+  # Platform-specific Spark configuration
+  spark_config:
+    # Iceberg configuration (when platform.type = "iceberg")
+    spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    spark.sql.catalog.iceberg: "org.apache.iceberg.spark.SparkCatalog"
+    spark.sql.catalog.iceberg.type: "hive"
+    spark.sql.catalog.iceberg.uri: "thrift://hive-metastore:9083"
+    spark.sql.catalog.iceberg.warehouse: "file:///data/warehouse"
+    spark.sql.defaultCatalog: "iceberg"
+    
+    # Performance tuning (applies to all platforms)
+    spark.sql.adaptive.enabled: "true"
+    spark.sql.adaptive.coalescePartitions.enabled: "true"
+    spark.sql.adaptive.skewJoin.enabled: "true"
+    
+    # Memory settings
+    spark.executor.memory: "2g"
+    spark.driver.memory: "1g"
+
+# Lineage tracking configuration  
+lineage:
+  enabled: true
+  table: "audit.etl_lineage"
+  
+# Environment settings
+environment: "development"  # development, staging, production
+
+# Default branch settings
+defaults:
+  input_branch: "main"
+  target_branch: "main"
+
+# Example environment-specific overrides:
+# environments:
+#   production:
+#     platform:
+#       spark_config:
+#         spark.sql.catalog.iceberg.warehouse: "s3://prod-data-lake/warehouse"
+#     lineage:
+#       table: "prod_audit.etl_lineage"
+#   
+#   development:
+#     platform:
+#       spark_config:
+#         spark.sql.catalog.iceberg.warehouse: "file:///tmp/dev-warehouse"
+#     lineage:
+#       enabled: false

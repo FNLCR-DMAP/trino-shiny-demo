@@ -1,0 +1,38 @@
+# Example: Snowflake Configuration  
+# ==================================
+
+platform:
+  type: "snowflake"
+  
+  # Snowflake connection parameters (can also be set via environment variables)
+  connection:
+    account: "your_account.region"
+    user: "your_username" 
+    warehouse: "COMPUTE_WH"
+    database: "ANALYTICS"
+    schema: "TRANSFORMS"
+    # password and other sensitive info should be in environment variables:
+    # SNOWFLAKE_PASSWORD, SNOWFLAKE_PRIVATE_KEY, etc.
+  
+  spark_config:
+    # Snowflake Spark connector
+    spark.jars.packages: "net.snowflake:snowflake-jdbc:3.13.30,net.snowflake:spark-snowflake_2.12:2.11.0-spark_3.3"
+    
+    # Snowflake-specific Spark settings
+    sfOptions: 
+      sfURL: "your_account.region.snowflakecomputing.com"
+      sfUser: "your_username"
+      sfDatabase: "ANALYTICS"
+      sfSchema: "TRANSFORMS" 
+      sfWarehouse: "COMPUTE_WH"
+
+lineage:
+  enabled: true
+  table: "AUDIT.ETL_LINEAGE"  # Snowflake table naming convention
+
+defaults:
+  # Snowflake uses time travel with timestamps, not branches
+  input_as_of_hours_ago: 0  # Use current data
+  target_schema: "TRANSFORMS"
+
+environment: "production"

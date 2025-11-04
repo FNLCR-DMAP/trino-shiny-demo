@@ -1,7 +1,7 @@
 # Trino + Iceberg + Shiny Frontend Stack
 # =====================================
 
-.PHONY: help build start stop restart clean logs status demo verify shiny-dev shiny-rebuild
+.PHONY: help build start stop restart clean logs status demo verify shiny-dev shiny-rebuild run-enhanced-pipeline
 
 # Current git commit short hash for deployment tagging
 COMMIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -36,6 +36,7 @@ help:
 	@echo "  make init-data           - Initialize demo schema and sample data"
 	@echo "  make init-ip-sum-data    - Initialize IP Sum pipeline tables and data"
 	@echo "  make run-ip-sum-pipeline - Run IP Sum transformation pipeline"
+	@echo "  make run-enhanced-pipeline - Run enhanced config-driven IP Sum pipeline"
 	@echo "  make rebuild-demo        - Full rebuild with demo data (like rebuild-demo.sh)"
 	@echo "  make test-query          - Test basic Trino connectivity"
 	@echo "  make test-time-travel    - Test Iceberg time travel functionality"
@@ -309,6 +310,15 @@ run-ip-sum-pipeline:
 	@./src/pipelines/ip_sum/run-ip-sum-pipeline.sh
 	@echo ""
 	@echo "🔧 Need help? Run: make verify"
+
+# Run enhanced configuration-driven IP Sum pipeline
+run-enhanced-pipeline:
+	@echo "🚀 Running Enhanced Configuration-Driven IP Sum Pipeline..."
+	@echo "   ✨ Features: Config-driven platform selection, automated lineage, graceful fallbacks"
+	@./src/pipelines/ip_sum/run-enhanced-ip-sum-pipeline.sh
+	@echo ""
+	@echo "✅ Enhanced pipeline completed!"
+	@echo "🔍 Query results: docker exec -it trino-cli trino --server http://trino:8080 --catalog iceberg --schema data_pipeline --execute \"SELECT * FROM ip_sum_output ORDER BY processing_timestamp DESC LIMIT 10\""
 
 # Deploy Shiny app to Posit Connect
 deploy:

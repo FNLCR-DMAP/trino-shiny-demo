@@ -1,0 +1,26 @@
+# Example: Delta Lake Configuration
+# =================================
+
+platform:
+  type: "delta"
+  
+  spark_config:
+    # Delta Lake configuration
+    spark.sql.extensions: "io.delta.sql.DeltaSparkSessionExtension"
+    spark.sql.catalog.spark_catalog: "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+    
+    # Delta-specific settings
+    spark.databricks.delta.retentionDurationCheck.enabled: "false"
+    spark.databricks.delta.merge.repartitionBeforeWrite.enabled: "true"
+    
+    # Performance tuning
+    spark.sql.adaptive.enabled: "true"
+    spark.sql.adaptive.coalescePartitions.enabled: "true"
+
+lineage:
+  enabled: true
+  table: "audit.etl_lineage"
+
+defaults:
+  input_branch: "main"  # Delta doesn't have native branches, but we track conceptually
+  target_branch: "main"
