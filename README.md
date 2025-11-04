@@ -112,6 +112,87 @@ make status
                     └─────────────────────┘
 ```
 
+### 🔧 **Configuration-Driven Data Pipeline Architecture**
+
+The project includes an advanced **DataPipeline** framework (`src/dmap_data_sdk/data_utils.py`) that provides a unified, configuration-driven approach to cross-engine data processing with automatic lineage tracking and branch support.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                          📋 Configuration Layer                                      │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  pipeline_config.yaml     │  config/delta_config.yaml  │  config/snowflake_config.yaml │
+│  ├─ platform: iceberg     │  ├─ platform: delta        │  ├─ platform: snowflake      │
+│  ├─ spark_config: {...}   │  ├─ spark_config: {...}    │  ├─ jdbc_config: {...}       │
+│  └─ lineage: enabled      │  └─ warehouse_path: s3://  │  └─ warehouse: database       │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                        🚀 DataPipeline API Layer                                    │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  DataPipeline.from_config("transform_name")                                          │
+│  ├─ 📖 pipeline.read_table(table, ref=Ref(branch="main"))                          │
+│  ├─ 💾 pipeline.write_table(df, table, mode="append")                              │
+│  ├─ 🔄 Auto Context Detection (Airflow ↔ Standalone)                               │
+│  └─ 📊 Automatic Lineage Recording                                                  │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                      🏗️ Abstract Platform Layer (ABC)                              │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  DataPlatform Interface:              │  LineageSink Interface:                      │
+│  ├─ read_table(table, ref)            │  ├─ ensure()                                │
+│  ├─ write_table(df, table, ctx)       │  ├─ record(lineage_record)                 │
+│  ├─ resolve_snapshot_id()             │  └─ 📋 Runtime Contract Enforcement        │
+│  └─ 🎯 Runtime Contract Enforcement   │                                             │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                        ┌─────────────────┼─────────────────┐
+                        ▼                 ▼                 ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ 🧊 Iceberg      │ │ 🔶 Delta Lake   │ │ ❄️  Snowflake   │ │ 📊 Lineage      │
+│ Platform        │ │ Platform        │ │ Platform        │ │ Sinks           │
+├─────────────────┤ ├─────────────────┤ ├─────────────────┤ ├─────────────────┤
+│ ✅ Branches     │ │ ⚠️  No Branches │ │ ⚠️  No Branches │ │ IcebergSink     │
+│ ✅ Time Travel  │ │ ✅ Time Travel  │ │ ✅ Time Travel  │ │ NoopSink        │
+│ ✅ Snapshots    │ │ ✅ Versions     │ │ ❌ No Snapshots │ │ (Custom Sinks)  │
+│ ✅ ACID Ops     │ │ ✅ ACID Ops     │ │ ✅ ACID Ops     │ │                 │
+└─────────────────┘ └─────────────────┘ └─────────────────┘ └─────────────────┘
+          │                   │                   │                   │
+          └───────────────────┼───────────────────┼───────────────────┘
+                              ▼                   ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                    🎯 Unified Data Operations                                       │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  📍 Ref Abstraction:           │  🔍 RunContext Tracking:                           │
+│  ├─ branch:"main"              │  ├─ run_id: airflow_12345                          │
+│  ├─ snapshot_id: 98765         │  ├─ dag_id, task_id (Airflow)                     │
+│  ├─ tag:"v1.0.0"               │  ├─ code_sha, code_branch (Git)                   │
+│  └─ as_of_ts_millis: 167...    │  └─ params: {input_branch: "feature_x"}           │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                     📊 Automatic Lineage & Metadata                                │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  LineageRecord:                        │  Snapshot Properties (Auto-stamped):       │
+│  ├─ 📅 recorded_at: timestamp          │  ├─ run_id: pipeline_execution_123         │
+│  ├─ 🔄 transform: "ip_sum"             │  ├─ dag_id: customer_analytics             │
+│  ├─ 📊 inputs: [table1@branch:main]    │  ├─ code_sha: abc123def                   │
+│  ├─ 🎯 target: table2@branch:feature   │  └─ params: {"batch_size": 1000}          │
+│  └─ 📈 snapshots: [123, 456] → 789     │                                            │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**🎯 Key Architecture Benefits:**
+- **📝 3-Line Business Logic**: `pipeline = DataPipeline.from_config()` → `df = pipeline.read_table()` → `pipeline.write_table()`  
+- **⚙️ Configuration-Driven**: Platform selection, Spark config, lineage via YAML files
+- **🔄 Cross-Engine Support**: Same API works with Iceberg, Delta Lake, Snowflake
+- **🌲 Branch-Aware**: Native git-like branching with Iceberg, graceful fallbacks elsewhere
+- **📊 Automatic Lineage**: Input/output tracking, snapshot genealogy, execution metadata
+- **🛡️ Production-Ready**: Context detection, error handling, ABC contracts, extensible design
+
 ## 🚀 Quick Start Guide
 
 ### 🎯 **Makefile Commands (Recommended)**
@@ -228,6 +309,82 @@ The included Shiny for Python web application provides an intuitive interface fo
 2. **Sample data**: Use "Sample Data" to preview table contents
 3. **Custom analysis**: Switch to "Custom Query" for specific business questions
 4. **Visualize results**: Automatic charts help identify patterns
+
+### **🔧 Enhanced DataPipeline Usage**
+
+The new configuration-driven pipeline dramatically simplifies data engineering workflows:
+
+**Traditional Approach (150+ lines):**
+```bash
+# Run original boilerplate-heavy pipeline
+make run-ip-sum-pipeline
+```
+
+**Enhanced Approach (3 lines of business logic):**
+```bash
+# Run configuration-driven pipeline with automatic lineage
+make run-enhanced-pipeline
+```
+
+**Code Comparison:**
+```python
+# ❌ Old Way: Manual boilerplate (150+ lines of setup)
+spark = SparkSession.builder \
+    .config("spark.sql.extensions", "org.apache.iceberg...") \
+    .config("spark.sql.catalog.iceberg", "org.apache.iceberg...") \
+    # ... 20+ more config lines
+    .getOrCreate()
+
+# Manual context detection
+if "AIRFLOW_CTX_DAG_ID" in os.environ:
+    # ... 30+ lines of Airflow context parsing
+else:
+    # ... 20+ lines of manual context creation
+
+# Manual lineage setup  
+try:
+    lineage_sink = IcebergLineageSink(spark, "audit.etl_lineage")
+    # ... 40+ lines of lineage handling
+except:
+    # ... error handling
+
+# Finally, business logic (buried in boilerplate)
+df = spark.read.format("iceberg").load("iceberg.data_pipeline.full_name_input")
+result = df.select(...)  # actual transformation
+df.write.format("iceberg").save("iceberg.data_pipeline.ip_sum_output")
+
+# ✅ New Way: Configuration-driven (3 lines)
+pipeline = DataPipeline.from_config("ip_sum")  # Auto-loads pipeline_config.yaml
+df = pipeline.read_table("full_name_input")     # Auto-lineage tracking
+pipeline.write_table(transformed_df, "ip_sum_output")  # Auto-context stamping
+```
+
+**Configuration File (`pipeline_config.yaml`):**
+```yaml
+platform:
+  type: "iceberg" 
+  spark_config:
+    spark.sql.adaptive.enabled: "true"
+    spark.sql.adaptive.coalescePartitions.enabled: "true"
+lineage:
+  enabled: true
+  table: "audit.etl_lineage"
+```
+
+**Cross-Platform Support:**
+```python
+# Same API works across platforms
+iceberg_pipeline = DataPipeline.from_config("transform", config_path="config/iceberg.yaml")
+delta_pipeline = DataPipeline.from_config("transform", config_path="config/delta.yaml") 
+snowflake_pipeline = DataPipeline.from_config("transform", config_path="config/snowflake.yaml")
+
+# Branch-aware operations (Iceberg)
+pipeline.set_input_ref(Ref(branch="feature_branch"))
+pipeline.set_target_ref(Ref(branch="main"))
+
+# Time travel operations (all platforms)
+historical_data = pipeline.platform.read_table("sales", Ref(as_of_ts_millis=1699027200000))
+```
 
 ## 🔍 Manual Exploration
 
