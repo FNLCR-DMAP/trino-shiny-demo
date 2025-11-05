@@ -42,12 +42,26 @@ services:
         condition: service_healthy
 
   # Trino Coordinator
+
+  opa:
+    image: openpolicyagent/opa:0.66.0
+    container_name: opa
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--watch", "/policies"]
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./opa/policies:/policies:ro
+    networks:
+      - iceberg-net
+
+
   trino:
-    image: trinodb/trino:435
+    image: trinodb/trino:477
     container_name: trino
     user: "0:0"
     ports:
-      - "8081:8080"
+      - "8081:8080" 
+      - "8443:8443"  # for TLS
     volumes:
       - ./trino/etc:/etc/trino
       - ./trino/catalog:/etc/trino/catalog
@@ -56,8 +70,11 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+
+      
     depends_on:
       - hive-metastore
+      - opa
     networks:
       - iceberg-net
 
@@ -108,15 +125,15 @@ services:
         echo 'Spark Master started, keeping container alive...'
         while true; do sleep 30; done
 
-  # Shiny for Python Frontend
+  # Shiny for Python Frontend (kept private; only proxy exposes it)
   shiny-app:
     build:
       context: ./shiny-app
       dockerfile: Dockerfile
-    image: trino-shiny-app:latest
+    image: trinoshinydemo:latest
     container_name: shiny-app
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"                 # internal only
     depends_on:
       - trino
     networks:
@@ -126,8 +143,6 @@ services:
     volumes:
       - ./shiny-app/app.py:/app/app.py
       - ./shiny-app/shared:/app/shared
-
-  # Deployment container for Posit Connect
   deploy-shiny:
     build:
       context: ./shiny-app
