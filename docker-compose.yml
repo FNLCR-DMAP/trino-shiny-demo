@@ -3,9 +3,9 @@ services:
   # PostgreSQL database for Hive Metastore
   postgres:
     image: postgres:15
-    container_name: postgres
-    ports:
-      - "5432:5432"
+    container_name: postgres_sql
+    expose:
+      - "5432"
     environment:
       POSTGRES_DB: metastore
       POSTGRES_USER: hive
@@ -66,10 +66,7 @@ services:
       - ./trino/etc:/etc/trino
       - ./trino/catalog:/etc/trino/catalog
       - ./warehouse:/data/warehouse
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
+
 
       
     depends_on:
@@ -143,21 +140,7 @@ services:
     volumes:
       - ./shiny-app/app.py:/app/app.py
       - ./shiny-app/shared:/app/shared
-  deploy-shiny:
-    build:
-      context: ./shiny-app
-      dockerfile: Dockerfile.deploy
-    image: trino-shiny-app-deploy:latest
-    container_name: deploy-shiny
-    networks:
-      - iceberg-net
-    environment:
-      - PYTHONUNBUFFERED=1
-      - RSCONNECT_HOME=/root/.rsconnect-python
-    volumes:
-      - ./shiny-app:/deploy
-      - "${HOME}/Library/Application Support/rsconnect-python:/root/.rsconnect-python:ro"
-    # The actual deploy command will be passed by make
+
 
 volumes:
   postgres-data:
