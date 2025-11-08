@@ -3,9 +3,9 @@ services:
   # PostgreSQL database for Hive Metastore
   postgres:
     image: postgres:15
-    container_name: postgres_sql
-    expose:
-      - "5432"
+    container_name: postgres
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: metastore
       POSTGRES_USER: hive
@@ -55,7 +55,10 @@ services:
       - ./trino/etc:/etc/trino
       - ./trino/catalog:/etc/trino/catalog
       - ./warehouse:/data/warehouse
-      
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       - hive-metastore
     networks:
@@ -108,15 +111,15 @@ services:
         echo 'Spark Master started, keeping container alive...'
         while true; do sleep 30; done
 
-  # Shiny for Python Frontend (kept private; only proxy exposes it)
+  # Shiny for Python Frontend
   shiny-app:
     build:
       context: ./shiny-app
       dockerfile: Dockerfile
-    image: trinoshinydemo:latest
+    image: trino-shiny-app:latest
     container_name: shiny-app
-    expose:
-      - "8000"                 # internal only
+    ports:
+      - "8000:8000"              
     depends_on:
       - trino
     networks:
@@ -127,6 +130,20 @@ services:
       - ./shiny-app/app.py:/app/app.py
       - ./shiny-app/shared:/app/shared
 
+  deploy-shiny:
+    build:
+      context: ./shiny-app
+      dockerfile: Dockerfile.deploy
+    image: trino-shiny-app-deploy:latest
+    container_name: deploy-shiny
+    networks:
+      - iceberg-net
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RSCONNECT_HOME=/root/.rsconnect-python
+    volumes:
+      - ./shiny-app:/deploy
+      - "${HOME}/Library/Application Support/rsconnect-python:/root/.rsconnect-python:ro"
 
 volumes:
   postgres-data:
