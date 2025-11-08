@@ -43,17 +43,6 @@ services:
 
   # Trino Coordinator
 
-  opa:
-    image: openpolicyagent/opa:0.66.0
-    container_name: opa
-    command: ["run", "--server", "--addr=0.0.0.0:8181", "--watch", "/policies"]
-    ports:
-      - "8181:8181"
-    volumes:
-      - ./opa/policies:/policies:ro
-    networks:
-      - iceberg-net
-
 
   trino:
     image: trinodb/trino:477
@@ -66,12 +55,9 @@ services:
       - ./trino/etc:/etc/trino
       - ./trino/catalog:/etc/trino/catalog
       - ./warehouse:/data/warehouse
-
-
       
     depends_on:
       - hive-metastore
-      - opa
     networks:
       - iceberg-net
 
