@@ -518,3 +518,92 @@ make test-query         # Basic connectivity
 - [Apache Iceberg Documentation](https://iceberg.apache.org/)
 - [Trino Documentation](https://trino.io/docs/)
 - [Apache Hive Documentation](https://hive.apache.org/)
+
+**Enable file-based authentication for Trino**
+
+This guide explains how to secure a Trino deployment using:
+
+HTTPS (TLS encryption)
+Password-based authentication
+
+**Directory structure:**
+```bash
+/etc/trino/
+├── config.properties
+├── password-authenticator.properties
+├── password.db
+└── tls/trino-security
+    └── trino.jks
+```
+
+
+**1. Enable Password Authentication**: 
+In **etc/config.properties**, set 
+```bash
+http-server.authentication.type=PASSWORD
+http-server.authentication.allow-insecure-over-http=false
+http-server.https.enabled=true
+http-server.https.port=8443
+http-server.https.keystore.path=/etc/trino/tls/trino.jks
+http-server.https.keystore.key=<your-keystore-password>
+```
+
+TLS and a configured shared secret are required for password authentication.
+
+**2. Create password-authenticator.properties**
+In **etc/password-authenticator.properties**, define:
+```bash
+password-authenticator.name=file
+file.password-file=/etc/trino/password.db
+```
+
+**3. Create the Password File (password.db)**
+Use bcrypt hashes for secure authentication. You can generate entries using htpasswd:
+```bash
+touch password.db
+htpasswd -B -C 10 password.db admin
+```
+
+**4. Generate a Self-Signed Certificate**
+
+you may use:
+
+*Self-signed certificate (for testing/internal clusters)*
+*Enterprise CA*
+*AWS ACM Private CA*
+*Kubernetes secret + cert-manager*
+
+Self-signed Certificate (simple option) as certs being used for **localhost**
+```bash
+keytool -genkeypair \
+  -alias trino \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 365 \
+  -keystore /etc/trino/tls/trino.jks \
+  -storepass <your-keystore-password> \
+  -keypass <your-keystore-password> \
+  -dname "CN=localhost, OU=Trino, O=YourOrg, L=YourCity, ST=YourState, C=US"
+```
+
+Replace <your-keystore-password> with the same password used in config.properties.
+
+This creates a .jks file with a self-signed certificate for localhost
+
+**5. Verify the Keystore**
+To inspect the contents:
+```bash
+keytool -list -v -keystore /etc/trino/tls/trino.jks -storepass <your-keystore-password>
+```
+
+**6. Restart Trino**
+Restart the Trino server to apply changes
+
+✅ Verifying Authentication
+Web UI
+Visit: https://localhost.com:8443
+Enter your username and password
+On success, your username appears in the top-right corner
+
+
+
