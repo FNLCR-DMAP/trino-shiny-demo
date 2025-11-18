@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dmap-data-sdk"
+version = "1.0.0"
+description = "DMAP Data Engineering SDK for Iceberg, Delta Lake, and Snowflake with lineage tracking"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "FNLCR DMAP", email = "dmap@fnlcr.nih.gov"}
+]
+keywords = ["data-engineering", "iceberg", "delta-lake", "snowflake", "lineage", "spark"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# PySpark is optional since users might have their own Spark environment
+spark = [
+    "pyspark>=3.3.0",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+]
+
+# Full installation with all dependencies
+all = [
+    "pyspark>=3.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/FNLCR-DMAP/dmap-data-sdk"
+Documentation = "https://github.com/FNLCR-DMAP/dmap-data-sdk/blob/main/README.md"
+Repository = "https://github.com/FNLCR-DMAP/dmap-data-sdk"
+"Bug Tracker" = "https://github.com/FNLCR-DMAP/dmap-data-sdk/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["dmap_data_sdk*"]
+exclude = ["tests*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
