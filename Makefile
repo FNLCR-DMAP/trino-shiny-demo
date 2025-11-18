@@ -6,6 +6,13 @@
 # Current git commit short hash for deployment tagging
 COMMIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
+# Configurable ports (override with environment variables)
+TRINO_PORT ?= 8083
+SHINY_PORT ?= 8000
+SPARK_PORT ?= 8082
+POSTGRES_PORT ?= 5432
+HIVE_PORT ?= 9083
+
 # Default target
 help:
 	@echo "🚀 Trino + Iceberg + Shiny Frontend Stack"
@@ -50,9 +57,23 @@ help:
 	@echo "                       - Register any data file (CSV, Parquet, JSON, etc.) to Iceberg"
 	@echo "  make register-lims-ngs   - Quick shortcut to register LIMS NGS data"
 	@echo ""
-	@echo "🌐 Access Points:"
-	@echo "  Shiny Frontend: http://localhost:8000"
-	@echo "  Trino Web UI:   http://localhost:8081"
+	@echo "🌐 Access Points (Default):"
+	@echo "  Shiny Frontend: http://localhost:$(SHINY_PORT)"
+	@echo "  Trino Web UI:   http://localhost:$(TRINO_PORT)"
+	@echo "  Spark Web UI:   http://localhost:$(SPARK_PORT)"
+	@echo ""
+	@echo "� Port Configuration:"
+	@echo "  Customize any port to avoid conflicts:"
+	@echo "  TRINO_PORT=8090 make start              # Change Trino port only"
+	@echo "  TRINO_PORT=8090 SHINY_PORT=8001 make start  # Change multiple ports"
+	@echo ""
+	@echo "  Available port variables:"
+	@echo "  TRINO_PORT (default: 8083), SHINY_PORT (default: 8000)"
+	@echo "  SPARK_PORT (default: 8082), POSTGRES_PORT (default: 5432)"
+	@echo "  HIVE_PORT (default: 9083)"
+	@echo ""
+	@echo "🔗 Remote Access:"
+	@echo "  If on remote server, use SSH or VS Code port forwarding"
 
 # Build all images
 build:
@@ -63,17 +84,19 @@ build:
 # Start the full stack
 start:
 	@echo "🚀 Starting full stack..."
-	docker-compose up -d
+	@echo "📝 Using ports: Trino=$(TRINO_PORT), Shiny=$(SHINY_PORT), Spark=$(SPARK_PORT)"
+	TRINO_PORT=$(TRINO_PORT) SHINY_PORT=$(SHINY_PORT) SPARK_PORT=$(SPARK_PORT) POSTGRES_PORT=$(POSTGRES_PORT) HIVE_PORT=$(HIVE_PORT) docker-compose up -d
 	@echo "✅ Stack started!"
-	@echo "🌐 Shiny Frontend: http://localhost:8000"
-	@echo "📊 Trino Web UI: http://localhost:8081"
+	@echo "🌐 Shiny Frontend: http://localhost:$(SHINY_PORT)"
+	@echo "📊 Trino Web UI:   http://localhost:$(TRINO_PORT)"
+	@echo "⚡ Spark Web UI:   http://localhost:$(SPARK_PORT)"
 
 # Start only Trino stack (no Shiny)
 trino:
 	@echo "🚀 Starting Trino stack only..."
-	docker-compose up -d postgres hive-metastore trino trino-cli
+	TRINO_PORT=$(TRINO_PORT) POSTGRES_PORT=$(POSTGRES_PORT) HIVE_PORT=$(HIVE_PORT) docker-compose up -d postgres hive-metastore trino trino-cli
 	@echo "✅ Trino stack started!"
-	@echo "📊 Trino Web UI: http://localhost:8081"
+	@echo "📊 Trino Web UI: http://localhost:$(TRINO_PORT)"
 
 # Start/restart only Shiny app (basic restart)
 shiny:
@@ -176,8 +199,9 @@ verify:
 		echo "❌ Shiny app not running"; \
 	fi
 	@echo "🌐 Access points:"
-	@echo "  Shiny Frontend: http://localhost:8000"
-	@echo "  Trino Web UI: http://localhost:8081"
+	@echo "  Shiny Frontend: http://localhost:$(SHINY_PORT)"
+	@echo "  Trino Web UI:   http://localhost:$(TRINO_PORT)"
+	@echo "  Spark Web UI:   http://localhost:$(SPARK_PORT)"
 
 # Initialize demo data
 init-data:
@@ -202,8 +226,9 @@ rebuild-demo:
 	@echo "6. Initializing demo data..."
 	$(MAKE) init-data
 	@echo "🎉 Rebuild complete!"
-	@echo "🌐 Shiny Frontend: http://localhost:8000"
-	@echo "📊 Trino Web UI: http://localhost:8081"
+	@echo "🌐 Shiny Frontend: http://localhost:$(SHINY_PORT)"
+	@echo "📊 Trino Web UI:   http://localhost:$(TRINO_PORT)"
+	@echo "⚡ Spark Web UI:   http://localhost:$(SPARK_PORT)"
 
 # Test a simple query
 test-query:
@@ -285,14 +310,14 @@ test-all:
 	$(MAKE) test-metadata
 	@echo ""
 	@echo "🎉 All tests completed!"
-	@echo "💡 Next: Try the Shiny app at http://localhost:8000"
+	@echo "💡 Next: Try the Shiny app at http://localhost:$(SHINY_PORT)"
 
 # Show demo instructions
 demo:
 	@echo "🎉 Shiny Frontend Demo"
 	@echo "====================="
 	@echo ""
-	@echo "1. 🌐 Open http://localhost:8000"
+	@echo "1. 🌐 Open http://localhost:$(SHINY_PORT)"
 	@echo ""
 	@echo "2. 🔍 Try these workflows:"
 	@echo "   • Show Catalogs → Execute"

@@ -51,8 +51,11 @@ This project demonstrates a **production-ready modern data lakehouse architectur
 # Clone or navigate to the project directory
 cd /path/to/trino-iceberg-stack
 
-# Build and start the entire stack
+# Build and start the entire stack (default ports)
 make start
+
+# Or customize ports to avoid conflicts
+TRINO_PORT=8090 SHINY_PORT=8001 make start
 
 # This command:
 # 1. Pulls all Docker images (Trino, Spark, Hive, PostgreSQL, Shiny)
@@ -64,6 +67,30 @@ make start
 # 7. Deploys Shiny web application
 # 8. Creates persistent warehouse directory
 ```
+
+### 🔌 **Port Configuration**
+The stack uses configurable ports to avoid conflicts with existing services:
+
+**Default Ports:**
+- **Shiny Frontend:** 8000 (configurable via `SHINY_PORT`)
+- **Trino Web UI:** 8083 (configurable via `TRINO_PORT`)
+- **Spark Web UI:** 8082 (configurable via `SPARK_PORT`)
+- **PostgreSQL:** 5432 (configurable via `POSTGRES_PORT`)
+- **Hive Metastore:** 9083 (configurable via `HIVE_PORT`)
+
+**Custom Port Examples:**
+```bash
+# Change individual ports
+TRINO_PORT=9090 make start
+
+# Change multiple ports
+TRINO_PORT=8090 SHINY_PORT=8001 SPARK_PORT=8085 make start
+
+# All ports customizable
+TRINO_PORT=9090 SHINY_PORT=9000 SPARK_PORT=9082 POSTGRES_PORT=5433 HIVE_PORT=9084 make start
+```
+
+**Note:** If running on a remote server, use SSH port forwarding or VS Code Remote port forwarding to access web interfaces locally.
 
 ### 🔧 **Step-by-Step Manual Build**
 ```bash
@@ -87,7 +114,7 @@ make status
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Shiny App     │    │      Trino       │    │     Spark       │
-│  (Port 8000)    │────│   (Port 8081)    │────│  (Port 8082)    │
+│  (Port 8000)    │────│   (Port 8083)    │────│  (Port 8082)    │
 │  Web Interface  │    │  Query Engine    │    │ Processing Engine│
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
@@ -149,8 +176,10 @@ make demo
 | Service | URL | Purpose |
 |---------|-----|---------|
 | **🌟 Shiny Frontend** | http://localhost:8000 | **Main user interface** - Query execution, data visualization |
-| **📊 Trino Web UI** | http://localhost:8081 | Query monitoring, cluster status, performance metrics |
+| **📊 Trino Web UI** | http://localhost:8083 | Query monitoring, cluster status, performance metrics |
 | **⚡ Spark Master UI** | http://localhost:8082 | Spark cluster management, job monitoring |
+
+**Remote Access:** If running on a remote server, use SSH port forwarding or VS Code Remote port forwarding to access these URLs in your local browser.
 | **🐘 PostgreSQL** | localhost:5432 | Direct database access (user: `hive`, password: `hive`) |
 
 ### 🔍 **Service Health Check**
