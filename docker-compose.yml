@@ -17,8 +17,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hive -d metastore"]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 5
+      start_period: 40s
 
   # Hive Metastore (using PostgreSQL database)
   hive-metastore:
@@ -47,7 +48,7 @@ services:
     container_name: trino
     user: "0:0"
     ports:
-      - "8081:8080"
+      - "8084:8080"
     volumes:
       - ./trino/etc:/etc/trino
       - ./trino/catalog:/etc/trino/catalog

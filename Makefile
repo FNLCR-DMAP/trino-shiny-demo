@@ -48,7 +48,7 @@ help:
 	@echo ""
 	@echo "🌐 Access Points:"
 	@echo "  Shiny Frontend: http://localhost:8000"
-	@echo "  Trino Web UI:   http://localhost:8081"
+	@echo "  Trino Web UI:   http://localhost:8084"
 
 # Build all images
 build:
@@ -62,14 +62,14 @@ start:
 	docker-compose up -d
 	@echo "✅ Stack started!"
 	@echo "🌐 Shiny Frontend: http://localhost:8000"
-	@echo "📊 Trino Web UI: http://localhost:8081"
+	@echo "📊 Trino Web UI: http://localhost:8084"
 
 # Start only Trino stack (no Shiny)
 trino:
 	@echo "🚀 Starting Trino stack only..."
 	docker-compose up -d postgres hive-metastore trino trino-cli
 	@echo "✅ Trino stack started!"
-	@echo "📊 Trino Web UI: http://localhost:8081"
+	@echo "📊 Trino Web UI: http://localhost:8084"
 
 # Start/restart only Shiny app (basic restart)
 shiny:
@@ -173,7 +173,7 @@ verify:
 	fi
 	@echo "🌐 Access points:"
 	@echo "  Shiny Frontend: http://localhost:8000"
-	@echo "  Trino Web UI: http://localhost:8081"
+	@echo "  Trino Web UI: http://localhost:8084"
 
 # Initialize demo data
 init-data:
@@ -199,7 +199,7 @@ rebuild-demo:
 	$(MAKE) init-data
 	@echo "🎉 Rebuild complete!"
 	@echo "🌐 Shiny Frontend: http://localhost:8000"
-	@echo "📊 Trino Web UI: http://localhost:8081"
+	@echo "📊 Trino Web UI: http://localhost:8084"
 
 # Test a simple query
 test-query:
