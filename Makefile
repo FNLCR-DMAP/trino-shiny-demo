@@ -46,6 +46,12 @@ help:
 	@echo "  make demo                - Show demo instructions"
 	@echo "  make verify              - Verify setup and connectivity"
 	@echo ""
+	@echo "📦 DMAP Data SDK Testing:"
+	@echo "  make init-sdk-data       - Initialize SDK integration test data"
+	@echo "  make test-sdk            - Run SDK pipeline integration test"
+	@echo "  make validate-sdk        - Validate SDK installation and results"
+	@echo "  make test-sdk-all        - Run complete SDK test suite (init + test + validate)"
+	@echo ""
 	@echo "🌐 Access Points:"
 	@echo "  Shiny Frontend: http://localhost:8000"
 	@echo "  Trino Web UI:   http://localhost:8084"
@@ -319,6 +325,36 @@ run-enhanced-pipeline:
 	@echo ""
 	@echo "✅ Enhanced pipeline completed!"
 	@echo "🔍 Query results: docker exec -it trino-cli trino --server http://trino:8080 --catalog iceberg --schema data_pipeline --execute \"SELECT * FROM ip_sum_output ORDER BY processing_timestamp DESC LIMIT 10\""
+
+# DMAP Data SDK Integration Testing
+init-sdk-data:
+	@echo "📊 Initializing SDK integration test data..."
+	@./tests/sdk-integration/init-test-data.sh
+
+test-sdk:
+	@echo "🧪 Running SDK pipeline integration test..."
+	@./tests/sdk-integration/test-sdk.sh
+
+validate-sdk:
+	@echo "✅ Validating SDK installation and results..."
+	@./tests/sdk-integration/validate-sdk.sh
+
+test-sdk-all:
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "🚀 Running Complete DMAP Data SDK Test Suite"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@$(MAKE) init-sdk-data
+	@echo ""
+	@$(MAKE) test-sdk
+	@echo ""
+	@$(MAKE) validate-sdk
+	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "✅ Complete SDK Test Suite Finished!"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "📖 For more details, see: tests/sdk-integration/README.md"
 
 # Deploy Shiny app to Posit Connect
 deploy:

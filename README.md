@@ -649,6 +649,58 @@ make test-query         # Basic connectivity
 - ✅ Metadata access: Explore internal Iceberg metadata
 - ✅ JAR persistence: Automatic setup survives rebuilds
 
+## 📦 DMAP Data SDK - Reusable Data Engineering Package
+
+This repository includes the **DMAP Data SDK**, a reusable Python package for building data pipelines with Apache Iceberg, Delta Lake, and Snowflake support.
+
+### Quick Start with SDK
+
+```bash
+# Run complete SDK test suite
+make test-sdk-all
+
+# Or run individual steps:
+make init-sdk-data    # Initialize test data
+make test-sdk         # Run SDK pipeline test
+make validate-sdk     # Validate results
+```
+
+### What Gets Tested
+
+The SDK integration tests demonstrate:
+- ✅ **SDK Installation**: Package installation in Spark container
+- ✅ **Data Pipelines**: Reading, transforming, and writing Iceberg tables
+- ✅ **Lineage Tracking**: Automatic capture of input/output relationships
+- ✅ **Snapshot Management**: Iceberg snapshot metadata and time travel
+- ✅ **Cross-Engine Access**: Tables created by SDK accessible via Trino
+
+### SDK Documentation
+
+- **Integration Testing Guide**: [`tests/sdk-integration/README.md`](tests/sdk-integration/README.md)
+  - Step-by-step test procedures
+  - Manual testing commands
+  - Troubleshooting guide
+  
+- **SDK Usage & API**: [`dmap-data-sdk/README.md`](dmap-data-sdk/README.md)
+  - Installation instructions
+  - API reference
+  - Configuration guide
+  - Usage examples
+  
+- **Validation Details**: [`dmap-data-sdk/VALIDATION.md`](dmap-data-sdk/VALIDATION.md)
+  - Comprehensive validation checks
+  - Expected results
+  - Query examples
+
+### SDK Features
+
+- 🔄 **Multi-Platform**: Write once, run on Iceberg, Delta Lake, or Snowflake
+- 📊 **Lineage Tracking**: Built-in data lineage capture
+- ⏰ **Time Travel**: First-class support for historical queries
+- 🌿 **Branch Management**: Iceberg branch operations
+- ⚙️ **Config-Driven**: YAML-based pipeline configuration
+- 🚀 **Spark-Submit Ready**: Works with spark-submit workflows
+
 ## 📚 Learn More
 
 - [Apache Iceberg Documentation](https://iceberg.apache.org/)
